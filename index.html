@@ -68,6 +68,7 @@ h1 .amp{font-weight:500;color:var(--muted)}
 .results button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
 .results button:hover,.results button:focus-visible{background:var(--surface-2)}
 .results small{color:var(--muted);display:block}
+.results .rh{padding:8px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:var(--surface-2)}
 .searchbox{position:relative}
 
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
@@ -821,25 +822,77 @@ $("mun").onchange=e=>setMun(e.target.value);
 
 // ---------- busca ----------
 const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
-let qTimer=null;
+const flat=s=>norm(s).replace(/[^a-z0-9]+/g," ").trim();
+// busca tolerante: palavras em qualquer ordem, sem acento nem pontuação, "Primeiro" = "I", abreviações e um erro de digitação
+const ORD={"1":"i","2":"ii","3":"iii","4":"iv","5":"v",primeiro:"i",primeira:"i",segundo:"ii",segunda:"ii",terceiro:"iii",terceira:"iii",quarto:"iv",quarta:"iv",quinto:"v",quinta:"v",sexto:"vi",setimo:"vii",oitavo:"viii",nono:"ix",decimo:"x"};
+const STOPW=new Set(["de","da","do","das","dos","e","a","o","em","no","na"]);
+const GENW=new Set(["colegio","col","escola","esc","estadual","est","municipal","mun","ee","eee","eef","eeef","eeem","eem","emef","emei","emeb","eeb","ef","em","inst","instituto","centro","educacional","ensino","fundamental","medio","grau","unidade","escolar"]);
+const toks=s=>{ const f=flat(s); return f?f.split(" ").map(w=>ORD[w]||w):[]; };
+function lev1(a,b){ if(a===b) return true; const la=a.length, lb=b.length; if(Math.abs(la-lb)>1) return false; let i=0; while(i<la&&i<lb&&a[i]===b[i]) i++; if(la===lb) return a.slice(i+1)===b.slice(i+1); return la>lb? a.slice(i+1)===b.slice(i) : a.slice(i)===b.slice(i+1); }
+function wm(q,w){ if(q===w) return true; if(q.length<=2||w.length<=1) return false; if(w.startsWith(q)) return true; if(w.length>=3&&q.startsWith(w)) return true; return q.length>=5&&q[0]===w[0]&&lev1(q,w); }
+function prepQ(raw){ const all=toks(raw).filter(w=>!STOPW.has(w)); let key=all.filter(w=>!GENW.has(w)); const gen=all.filter(w=>GENW.has(w)); if(!key.length) key=gen.splice(0); return {key,gen,ph:toks(raw).join(" ")}; }
+function qscore(Q,wt,txt){ let hit=0,miss=0,g=0; for(const q of Q.key){ if(wt.some(w=>wm(q,w))) hit++; else miss++; } if(miss&&!(miss===1&&Q.key.length>=3)) return -1; for(const q of Q.gen) if(wt.some(w=>wm(q,w))) g++; return hit*10+g*3-miss*12+((" "+txt+" ").includes(" "+Q.ph+" ")?6:0); }
+let NOMES=null, NOMESP=null;
+function loadNomes(){ if(!NOMESP) NOMESP=getJSON("d/nomes.json").then(d=>{ for(const v of Object.values(d)) v.t=v.n.map(toks); return NOMES=d; }).catch(e=>{ NOMESP=null; throw e; }); return NOMESP; }
+const GEO={};
+const tfetch=(u,ms=5000)=>Promise.race([fetch(u).then(r=>r.ok?r.json():null), new Promise(r=>setTimeout(()=>r(null),ms))]).catch(()=>null);
+async function cepGeo(cep){ // CEP -> endereço (ViaCEP) -> coordenadas (OpenStreetMap). Onde a página não pode consultar fora, volta null.
+  if(cep in GEO) return GEO[cep];
+  const v=await tfetch(`https://viacep.com.br/ws/${cep}/json/`); if(!v||v.erro) return GEO[cep]=null;
+  const res={uf:v.uf,city:v.localidade,bairro:v.bairro,rua:v.logradouro}, base="https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br", e=encodeURIComponent;
+  let g=v.logradouro? await tfetch(`${base}&street=${e(v.logradouro)}&city=${e(v.localidade)}&state=${e(v.uf)}`):null;
+  if(!(g&&g[0])&&v.bairro) g=await tfetch(`${base}&q=${e(v.bairro+", "+v.localidade+", "+v.uf)}`);
+  if(g&&g[0]){ res.lat=+g[0].lat; res.lon=+g[0].lon; }
+  return GEO[cep]=res;
+}
+const kmDist=(a,b,c,d)=>{ const k=Math.PI/180, x=(d-b)*k*Math.cos((a+c)/2*k), y=(c-a)*k; return 6371*Math.hypot(x,y); };
+const fmtDist=km=>km<1? Math.round(km*1000/10)*10+" m" : fmt1.format(km)+" km";
+let qTimer=null, qSeq=0;
 $("q").addEventListener("input",()=>{ clearTimeout(qTimer); const v=$("q").value.trim(); if(v.length>=2){ $("results").innerHTML=`<div class="empty">Buscando…</div>`; $("results").hidden=false; } qTimer=setTimeout(search,180); });
 $("q").addEventListener("keydown",e=>{ if(e.key==="Escape"){ $("results").hidden=true; } if(e.key==="Enter"){ const b=$("results").querySelector("button"); if(b){ e.preventDefault(); b.click(); } } });
 document.addEventListener("click",e=>{ if(!e.target.closest(".searchbox")) $("results").hidden=true; });
 async function search(){
-  const raw=$("q").value.trim(), box=$("results"); if(raw.length<2){box.hidden=true;return;}
-  const digits=raw.replace(/\D/g,""); const out=[];
+  const raw=$("q").value.trim(), box=$("results"), my=++qSeq; if(raw.length<2){box.hidden=true;return;}
+  const msg=t=>{ if(my===qSeq){ box.innerHTML=`<div class="empty">${t}</div>`; box.hidden=false; } };
+  const digits=raw.replace(/\D/g,""); const out=[]; let head="";
   if(digits.length>=5 && digits.length===raw.replace(/[\s.-]/g,"").length){
-    const uf=cepToUF(digits); if(uf){ if(!UFD[uf]){ box.innerHTML=`<div class="empty">Carregando dados de ${esc(IDX.ufnome[uf])}…</div>`; box.hidden=false; } const D=await loadUF(uf); let hits=[]; for(let n=Math.min(8,digits.length);n>=3&&hits.length<1;n--){ const p=digits.slice(0,n); hits=D.rows.filter(r=>r.cep.startsWith(p)); }
-      hits.sort((a,b)=>Math.abs(+a.cep-+digits.padEnd(8,"0"))-Math.abs(+b.cep-+digits.padEnd(8,"0"))); hits.slice(0,12).forEach(r=>out.push({t:"loc",r,lab:r.nome,sub:`CEP ${r.cep.slice(0,5)}-${r.cep.slice(5)} · ${r.bairro} · ${r.mun}/${r.uf}`})); }
+    let uf=cepToUF(digits), geo=null;
+    if(digits.length===8){ msg("Localizando o CEP…"); geo=await cepGeo(digits); if(my!==qSeq) return; if(geo&&IDX.ufnome[geo.uf]) uf=geo.uf; }
+    if(uf){ if(!UFD[uf]) msg(`Carregando dados de ${esc(IDX.ufnome[uf])}…`); const D=await loadUF(uf); if(my!==qSeq) return;
+      let pt=null, onde="";
+      if(geo&&geo.lat!=null){ pt=[geo.lat,geo.lon]; onde=[geo.rua,geo.bairro].filter(Boolean).join(", ")+" · "+geo.city+"/"+geo.uf; }
+      else if(geo&&geo.city){ // sem coordenada: centro dos locais do bairro, ou da cidade
+        const inCity=D.rows.filter(r=>flat(r.mun)===flat(geo.city)&&r.lat!=null), inB=inCity.filter(r=>flat(r.bairro)===flat(geo.bairro)), base=inB.length?inB:inCity;
+        if(base.length){ pt=[base.reduce((s,r)=>s+r.lat,0)/base.length, base.reduce((s,r)=>s+r.lon,0)/base.length]; onde=(inB.length?geo.bairro+" · ":"")+geo.city+"/"+geo.uf; } }
+      if(pt){ const near=D.rows.filter(r=>r.lat!=null).map(r=>[kmDist(pt[0],pt[1],r.lat,r.lon),r]).sort((a,b)=>a[0]-b[0]).slice(0,12);
+        head=`Locais de votação mais perto de ${esc(onde)}`;
+        near.forEach(([km,r])=>out.push({t:"loc",r,lab:r.nome,sub:`a ${fmtDist(km)} · ${r.bairro} · ${r.mun}/${r.uf}`})); }
+      else { let hits=[]; for(let n=Math.min(8,digits.length);n>=3&&hits.length<1;n--){ const p=digits.slice(0,n); hits=D.rows.filter(r=>r.cep.startsWith(p)); }
+        hits.sort((a,b)=>Math.abs(+a.cep-+digits.padEnd(8,"0"))-Math.abs(+b.cep-+digits.padEnd(8,"0"))); hits.slice(0,12).forEach(r=>out.push({t:"loc",r,lab:r.nome,sub:`CEP ${r.cep.slice(0,5)}-${r.cep.slice(5)} · ${r.bairro} · ${r.mun}/${r.uf}`})); } }
   } else {
-    const q=norm(raw);
-    for(const r of MUNS){ if(norm(r.nome).includes(q)){ out.push({t:"mun",r,lab:r.nome,sub:"Município · "+IDX.ufnome[r.uf]}); if(out.length>=6) break; } }
-    if(S.uf!=="BR"){ const D=UFD[S.uf]; const seen=new Set(); const pool=S.mun>=0?D.rows.filter(r=>r.mi===S.mun):D.rows;
-      for(const r of pool){ if(norm(r.bairro).includes(q)){ const k=r.mi+"|"+r.bairro; if(!seen.has(k)){ seen.add(k); out.push({t:"bairro",r,lab:r.bairro,sub:"Bairro · "+r.mun}); } } if(seen.size>=6) break; }
-      let c=0; for(const r of pool){ if(norm(r.nome).includes(q)||norm(r.end).includes(q)){ out.push({t:"loc",r,lab:r.nome,sub:r.bairro+" · "+r.mun}); if(++c>=12) break; } } }
+    const Q=prepQ(raw), ph=flat(raw); if(!Q.key.length){ box.hidden=true; return; }
+    const mh=[]; for(const r of MUNS){ const f=flat(r.nome), wt=toks(r.nome); if(f.includes(ph)||[...Q.key,...Q.gen].every(q=>wt.some(w=>w===q||(q.length>2&&w.startsWith(q))))) mh.push([(f===ph?2:0)+(f.startsWith(ph)?1:0),r]); }
+    mh.sort((a,b)=>b[0]-a[0]||b[1].apt-a[1].apt).slice(0,4).forEach(([,r])=>out.push({t:"mun",r,lab:r.nome,sub:"Município · "+IDX.ufnome[r.uf]}));
+    const cands=[], seenLoc=new Set();
+    if(S.uf!=="BR"&&UFD[S.uf]){ const D=UFD[S.uf]; const seen=new Set(); const pool=S.mun>=0?D.rows.filter(r=>r.mi===S.mun):D.rows;
+      for(const r of pool){ const b=flat(r.bairro); if(b.includes(ph)){ const k=r.mi+"|"+r.bairro; if(!seen.has(k)){ seen.add(k); out.push({t:"bairro",r,lab:r.bairro,sub:"Bairro · "+r.mun}); } } if(seen.size>=3) break; }
+      for(const r of pool){ const wt=toks(r.nome+" "+r.end), s=qscore(Q,wt,wt.join(" ")); if(s>=0){ cands.push({s:s+8,o:{t:"loc",r,lab:r.nome,sub:`${r.end?r.end+" · ":""}${r.bairro} · ${r.mun}/${r.uf}`}}); seenLoc.add(r.uf+"|"+r.i); } } }
+    if(!NOMES) msg("Buscando em todo o Brasil…");
+    try{ await loadNomes(); }catch(e){} if(my!==qSeq) return;
+    if(NOMES) for(const [uf,v] of Object.entries(NOMES)){ const bonus=uf===S.uf?4:0;
+      for(let i=0;i<v.n.length;i++){ if(seenLoc.has(uf+"|"+i)) continue; const s=qscore(Q,v.t[i],v.t[i].join(" ")); if(s<0) continue;
+        const mun=IDX.uf[uf][v.mi[i]][0], bairro=v.bl[v.b[i]]||"Sem bairro";
+        cands.push({s:s+bonus,o:{t:"loc",light:true,r:{uf,i,mi:v.mi[i],nome:v.n[i],mun,bairro},lab:v.n[i],sub:`${bairro} · ${mun}/${uf}`}}); } }
+    if(NOMES&&ph.length>=3){ const have=new Set(out.filter(o=>o.t==="bairro").map(o=>o.r.uf+"|"+o.r.mi+"|"+o.r.bairro)), nb=[];
+      for(const [uf,v] of Object.entries(NOMES)){ const okb=new Set(); v.bl.forEach((b,k)=>{ if(flat(b).includes(ph)) okb.add(k); }); if(!okb.size) continue;
+        for(let i=0;i<v.n.length&&nb.length<40;i++){ if(!okb.has(v.b[i])) continue; const bairro=v.bl[v.b[i]], key=uf+"|"+v.mi[i]+"|"+bairro; if(have.has(key)) continue; have.add(key);
+          nb.push({s:(uf===S.uf?2:0)+(flat(bairro)===ph?1:0),o:{t:"bairro",light:true,r:{uf,i,mi:v.mi[i],bairro,mun:IDX.uf[uf][v.mi[i]][0]},lab:bairro,sub:`Bairro · ${IDX.uf[uf][v.mi[i]][0]}/${uf}`}}); } }
+      const nLoc=out.filter(o=>o.t==="bairro").length; nb.sort((a,b)=>b.s-a.s).slice(0,Math.max(0,3-nLoc)).forEach(c=>out.push(c.o)); }
+    cands.sort((a,b)=>b.s-a.s).slice(0,15).forEach(c=>out.push(c.o));
   }
-  if(!out.length){ box.innerHTML=`<div class="empty">${S.uf==="BR"&&!/\d{5}/.test(digits)?"Nada encontrado. Para buscar escola ou bairro, escolha um estado ou digite um CEP.":"Nada encontrado neste recorte."}</div>`; box.hidden=false; return; }
-  box.innerHTML=out.map((o,i)=>`<button type="button" data-i="${i}">${esc(o.lab)}<small>${esc(o.sub)}</small></button>`).join(""); box.hidden=false;
+  if(my!==qSeq) return;
+  if(!out.length){ msg("Nada encontrado. Tente só uma parte do nome, o bairro, a cidade ou o CEP."); return; }
+  box.innerHTML=(head?`<div class="rh">${head}</div>`:"")+out.map((o,i)=>`<button type="button" data-i="${i}">${esc(o.lab)}<small>${esc(o.sub)}</small></button>`).join(""); box.hidden=false;
   const small=()=>matchMedia("(max-width: 960px)").matches;
   const go=el=>{ if(small()) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),120); };
   box.querySelectorAll("button").forEach(b=>b.onclick=async()=>{ const o=out[+b.dataset.i]; $("q").value="";
@@ -847,6 +900,7 @@ async function search(){
     if(o.t==="mun"){ await pick(o.r); box.hidden=true; go(document.querySelector(".mapcard")); return; }
     if(S.uf!==o.r.uf) await setUF(o.r.uf,false);
     box.hidden=true;
+    if(o.light) o.r=UFD[o.r.uf].rows[o.r.i];
     if(o.t==="bairro"){ await pick({kind:"bairro",mi:o.r.mi,b:o.r.bairro}); go(document.querySelector(".mapcard")); return; }
     setMun(o.r.mi,false); S.sel=o.r; focusOn([o.r],0.03); render(false); go($("detail")); });
 }
