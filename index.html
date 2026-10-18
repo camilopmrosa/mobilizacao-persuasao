@@ -272,6 +272,17 @@ canvas#simmap{display:block;width:100%;height:100%}
 .byline{margin:0;font-size:13px;color:var(--muted)}
 .byline a,footer a{color:var(--fg);font-weight:600;text-underline-offset:3px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top, 0px));z-index:45;width:min(560px, calc(100% - 32px));background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:13px}
+.odds{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;display:grid;gap:8px}
+.odds .oh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:baseline}
+.odds .oh span{font-variant-numeric:tabular-nums;font-size:15px}
+.odds .oh b{font-family:var(--font-display);font-size:22px}
+.obar{height:8px;border-radius:3px;overflow:hidden;display:flex;background:var(--surface-2)}
+.obar i{display:block;height:100%}
+.otab{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.otab th,.otab td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.otab thead th{color:var(--muted);font-weight:500}
+.otab tbody th{text-align:left;font-weight:600}
+.odds .hint{margin:0;font-size:12px;color:var(--muted)}
 .notes{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:4px 14px}
 .notes summary{cursor:pointer;padding:10px 0;font-weight:600}
 .notes ul{margin:0 0 12px;padding-left:18px;display:grid;gap:6px;max-width:90ch;color:var(--muted)}
@@ -279,7 +290,6 @@ canvas#simmap{display:block;width:100%;height:100%}
 footer{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
-
 </head>
 <body>
 <div class="wrap">
@@ -889,6 +899,11 @@ function groupsUI(){
   $("a-bn").oninput=e=>{ SIM.bn=+e.target.value; $("a-bno").textContent=`${SIM.bn}% · ${short((T.br+T.nu)*SIM.bn/100)}`; refreshCounts(); simSchedule(); };
   $("a-part").oninput=e=>{ SIM.part=+e.target.value; $("a-parto").textContent=`${SIM.part}% · ${short(third*SIM.part/100)}`; refreshCounts(); simSchedule(); };
 }
+// chance de vitória: o resultado real se desvia do cenário como as pesquisas de véspera costumam errar
+const SIGMA=3; // desvio, em pontos, na diferença entre os dois (ver nota na página)
+function ncdf(x){ const t=1/(1+.2316419*Math.abs(x)), d=.3989423*Math.exp(-x*x/2), p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return x>0?1-p:p; }
+function winOdds(lead){ const P=x=>ncdf((x-lead)/SIGMA); // lead = Lula − Flávio, em pontos dos votos válidos
+  return {L:1-P(0), F:P(0), L4:P(4)-P(0), L8:P(8)-P(4), L9:1-P(8), F4:P(0)-P(-4), F8:P(-4)-P(-8), F9:P(-8)}; }
 let simRaf=0; function simSchedule(){ cancelAnimationFrame(simRaf); simRaf=requestAnimationFrame(simRender); }
 let SIMR=null;
 function simRender(){
@@ -905,10 +920,17 @@ function simRender(){
   $("score").innerHTML=`<div class="cands"><div class="c L"><span class="n">Lula</span><span class="p">${fmt1.format(pL*100)}%</span><span class="v">${fmt.format(Math.round(R.L))} votos</span></div><span class="vs">votos válidos</span><div class="c r F"><span class="n">Flávio</span><span class="p">${fmt1.format(pF*100)}%</span><span class="v">${fmt.format(Math.round(R.F))} votos</span></div></div>
    <div class="duel" role="img" aria-label="Lula ${fmt1.format(pL*100)}%, Flávio ${fmt1.format(pF*100)}%"><i style="width:${pL*100}%;background:var(--lula)"></i><i style="width:${pF*100}%;background:var(--flavio)"></i><span class="mid"></span></div>
    <p class="verdict">Neste cenário, <strong>${w}</strong> vence por <strong>${fmt.format(diff)}</strong> votos. No 1º turno, considerando só os dois, era Lula ${fmt1.format(R.L1/v1*100)}% × Flávio ${fmt1.format(R.F1/v1*100)}%.</p>
+   ${(()=>{ const o=winOdds((pL-pF)*100), f=v=>v<.005?"menos de 1%":v>.995?"mais de 99%":Math.round(v*100)+"%";
+     return `<div class="odds"><div class="oh"><strong>Chance de vitória neste cenário</strong><span>Lula <b style="color:var(--lula)">${f(o.L)}</b> · Flávio <b style="color:var(--flavio)">${f(o.F)}</b></span></div>
+     <div class="obar" aria-hidden="true"><i style="width:${o.L*100}%;background:var(--lula)"></i><i style="width:${o.F*100}%;background:var(--flavio)"></i></div>
+     <table class="otab"><thead><tr><th></th><th>por até 4 pontos</th><th>de 4 a 8</th><th>mais de 8</th></tr></thead><tbody>
+     <tr><th style="color:var(--lula)">Lula vence</th><td>${f(o.L4)}</td><td>${f(o.L8)}</td><td>${f(o.L9)}</td></tr>
+     <tr><th style="color:var(--flavio)">Flávio vence</th><td>${f(o.F4)}</td><td>${f(o.F8)}</td><td>${f(o.F9)}</td></tr></tbody></table>
+     <p class="hint">Considera que o resultado real pode se afastar deste cenário como as pesquisas de véspera costumam errar: um desvio de ${SIGMA} pontos na diferença entre os dois. Nos 2º turnos de 2014, 2018 e 2022 o erro do Datafolha foi de 0,3 a 2,2 pontos. No 1º turno de 2026, foi de 4,9.</p></div>`; })()}
    <p class="tipping">${tip}</p>
    <div class="links"><button class="copy" type="button" id="simcopy">Copiar meu cenário</button></div>`;
   $("simcopy").onclick=async()=>{ const desc=GROUPS.map(([g,n])=>`${n}: ${splitTxt(SIM.split[g])}`).join("; ");
-    const t=`Meu cenário no simulador do 2º turno: Lula ${fmt1.format(pL*100)}% × Flávio ${fmt1.format(pF*100)}% (${w} por ${fmt.format(diff)} votos). Premissas: abstenção de ${fmt1.format(SIM.abst2)}% (1º turno: ${fmt1.format(ABST1())}%); ${desc}. ${SIM.bn}% dos brancos e nulos escolhem alguém e ${SIM.part}% dos eleitores dos outros candidatos votam de novo. Feito no Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj`;
+    const oo=winOdds((pL-pF)*100); const t=`Meu cenário no simulador do 2º turno: Lula ${fmt1.format(pL*100)}% × Flávio ${fmt1.format(pF*100)}% (${w} por ${fmt.format(diff)} votos). Chance de vitória: Lula ${Math.round(oo.L*100)}%, Flávio ${Math.round(oo.F*100)}%. Premissas: abstenção de ${fmt1.format(SIM.abst2)}% (1º turno: ${fmt1.format(ABST1())}%); ${desc}. ${SIM.bn}% dos brancos e nulos escolhem alguém e ${SIM.part}% dos eleitores dos outros candidatos votam de novo. Feito no Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj`;
     const b=$("simcopy"); try{ await navigator.clipboard.writeText(t); b.textContent="Cenário copiado"; }catch(e){ b.textContent="Não foi possível copiar"; } };
   // estados
   const ufs=Object.entries(R.ufs).map(([uf,U])=>({uf,U,w:U.L>U.F?"L":"F",w1:U.L1>U.F1?"L":"F",m:(U.L-U.F)/(U.L+U.F)})).sort((a,b)=>b.m-a.m);
@@ -1006,6 +1028,7 @@ async function locateMe(manual){
   toast(`Mostrando a região perto de você, em <strong>${esc(best.nome)}</strong>${loc?`. Local de votação mais próximo: <strong>${esc(loc.nome)}</strong>, a ${ld<1?"menos de 1 km":fmt1.format(ld)+" km"}`:""}. Sua localização não sai do seu navegador.`,8000);
   return true;
 }
+try{ const fp=document.permissionsPolicy||document.featurePolicy; if(!navigator.geolocation||(fp&&fp.allowsFeature&&!fp.allowsFeature("geolocation"))) $("nearme").hidden=true; }catch(e){}
 $("nearme").onclick=()=>{ if(TOUR){TOUR.stop=true;$("caption").hidden=true;} setView("map"); locateMe(true); };
 // ---------- início ----------
 let rT=null; new ResizeObserver(()=>{ clearTimeout(rT); rT=setTimeout(()=>{ resize(); fit(); draw(); },60); }).observe($("mapbox"));
@@ -1033,6 +1056,5 @@ new MutationObserver(()=>draw()).observe(document.documentElement,{attributes:tr
 })();
 })();
 </script>
-
 </body>
 </html>
