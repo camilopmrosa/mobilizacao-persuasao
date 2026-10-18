@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Mapa interativo dos 95 mil locais de votação do Brasil: onde estão os eleitores que não votaram e os votos em disputa no 2º turno de 2026, com plano de ação e simulador. Por Camilo Rosa.">
+<meta name="author" content="Camilo Rosa">
+<meta property="og:title" content="Mobilização e Persuasão · 2º turno 2026">
+<meta property="og:description" content="Mapa interativo dos 95 mil locais de votação do Brasil: onde estão os eleitores que não votaram e os votos em disputa no 2º turno de 2026, com plano de ação e simulador. Por Camilo Rosa.">
+<meta property="og:type" content="website">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Mobilização e Persuasão</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: mesa de operação de campo — barra de controles, mapa de pontos à esquerda, ranking e ficha do local à direita. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface-2:#e9edf1; --line:#d3dae1; --fg:#17212b; --muted:#5b6876;
+  --mob:#b86e00; --mob-soft:#fbecd3; --per:#00796b; --per-soft:#d5efeb;
+  --lula:#c8413a; --flavio:#2d5bb0; --tie:#7c8794; --map-land:#e6ebef; --map-edge:#bcc6cf; --map-sel:#7f8c99;
+  --font-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius:6px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#10161c; --surface:#18212a; --surface-2:#212c37; --line:#2f3c49; --fg:#e7edf2; --muted:#9aa8b5;
+  --mob:#f0a83a; --mob-soft:#3a2a12; --per:#3cc2ad; --per-soft:#123430;
+  --lula:#ee6b62; --flavio:#6f97e6; --tie:#8693a0; --map-land:#1c2630; --map-edge:#34424f; --map-sel:#7d8b98; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#10161c; --surface:#18212a; --surface-2:#212c37; --line:#2f3c49; --fg:#e7edf2; --muted:#9aa8b5;
+  --mob:#f0a83a; --mob-soft:#3a2a12; --per:#3cc2ad; --per-soft:#123430;
+  --lula:#ee6b62; --flavio:#6f97e6; --tie:#8693a0; --map-land:#1c2630; --map-edge:#34424f; --map-sel:#7d8b98; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 40px;display:grid;gap:16px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px}
+.brand{display:grid;gap:4px;min-width:0}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:800;font-size:clamp(26px,4vw,40px);line-height:1.02;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 .amp{font-weight:500;color:var(--muted)}
+.sub{color:var(--muted);max-width:68ch;margin:0}
+
+.lens{display:inline-grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface);gap:3px}
+.lens button{border:0;background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600;display:flex;gap:8px;align-items:center;white-space:nowrap}
+.lens button .dot{width:9px;height:9px;border-radius:50%}
+.lens button[data-lens="mob"] .dot{background:var(--mob)}
+.lens button[data-lens="per"] .dot{background:var(--per)}
+.lens button[aria-pressed="true"][data-lens="mob"]{background:var(--mob-soft)}
+.lens button[aria-pressed="true"][data-lens="per"]{background:var(--per-soft)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.ctl{display:grid;gap:4px;min-width:0}
+.ctl label{font-size:11px;font-family:var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ctl select,.ctl input{height:36px;border:1px solid var(--line);border-radius:4px;background:var(--bg);padding:0 10px;min-width:0;max-width:100%}
+.ctl.grow{flex:1 1 240px}
+@media (max-width: 700px){ .searchbox{order:-1;flex-basis:100%} .controls .ctl:not(.searchbox){flex:1 1 calc(50% - 5px)} .controls .ctl select{width:100%} .reset{flex:1 1 calc(50% - 5px);justify-content:center;align-self:end} .ctl.searchbox input{height:44px;font-size:16px} #metric{min-width:0;width:100%} table.rank th:nth-child(5),table.rank td:nth-child(5){display:none} table.rank td,table.rank th{padding:7px 5px} .nm{min-width:120px} .chip{font-size:10px;padding:1px 4px} }
+.ctl.grow input{width:100%}
+#metric{min-width:220px}
+.results{position:absolute;z-index:20;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:4px;max-height:320px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.results button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
+.results button:hover,.results button:focus-visible{background:var(--surface-2)}
+.results small{color:var(--muted);display:block}
+.searchbox{position:relative}
+
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.crumbs button{border:0;background:none;padding:0;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.crumbs span.sep{color:var(--muted)}
+.crumbs strong{font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width: 960px){.main{grid-template-columns:minmax(0,1fr)}}
+
+.mapcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);position:relative;overflow:hidden}
+.mapbox{position:relative;height:clamp(360px,62vh,680px);touch-action:none}
+canvas#map{display:block;width:100%;height:100%;cursor:grab}
+canvas#map.dragging{cursor:grabbing}
+.mapctl{position:absolute;right:10px;top:10px;display:grid;gap:4px}
+.mapctl button{width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:4px;cursor:pointer;font-weight:600;font-size:16px;line-height:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.14);max-width:260px;z-index:5}
+.tip b{display:block;font-size:13px}
+.loading{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--surface) 70%,transparent);font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+.side{display:grid;gap:16px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);min-width:0}
+.panel h2{font-family:var(--font-display);font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em}
+.summary{padding:14px;display:grid;gap:10px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{display:grid;gap:2px;min-width:0}
+.kpi .v{font-family:var(--font-display);font-weight:700;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted)}
+.lensbar{height:6px;border-radius:3px}
+.lens-mob .lensbar{background:var(--mob)}
+.lens-per .lensbar{background:var(--per)}
+.insight{font-size:13px;margin:0}
+.insight strong{font-variant-numeric:tabular-nums}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 8px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 10px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg)}
+.rankwrap{max-height:520px;overflow:auto}
+table.rank{width:100%;border-collapse:collapse;font-size:13px}
+table.rank th{position:sticky;top:0;background:var(--surface);text-align:left;font-weight:500;font-size:11px;font-family:var(--font-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
+table.rank th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+table.rank th button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+table.rank th[aria-sort] button{color:var(--fg)}
+.sortnote{padding:8px 10px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+table.rank td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.rank tr{cursor:pointer}
+table.rank tbody tr:hover{background:var(--surface-2)}
+table.rank tr.sel{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.pos{color:var(--muted);font-family:var(--font-mono);font-size:11px;width:28px}
+.nm{font-weight:500;overflow-wrap:anywhere}
+.nm small{display:block;color:var(--muted);font-weight:400}
+.chip{display:inline-block;font-size:11px;font-family:var(--font-mono);padding:1px 6px;border-radius:3px;color:#fff;white-space:nowrap}
+.chip.L{background:var(--lula)} .chip.F{background:var(--flavio)} .chip.T{background:var(--tie)}
+.more{display:block;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:10px;cursor:pointer;color:var(--muted);font-weight:600}
+.empty{padding:20px;color:var(--muted);text-align:center}
+
+.detail{padding:14px;display:grid;gap:12px}
+.detail .head{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.detail h3{font-family:var(--font-display);font-size:19px;margin:0;line-height:1.15;overflow-wrap:anywhere}
+.detail .addr{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.x{border:1px solid var(--line);background:none;border-radius:4px;width:30px;height:30px;cursor:pointer;flex:none}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.facts div{display:grid;gap:1px;min-width:0}
+.facts .v{font-weight:600;font-variant-numeric:tabular-nums}
+.facts .l{font-size:11px;color:var(--muted)}
+.bars{display:grid;gap:5px}
+.bar{display:grid;grid-template-columns:96px minmax(0,1fr) 92px;gap:8px;align-items:center;font-size:12px}
+.bar .track{height:10px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+.bar .fill{height:100%}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:6px 10px;font-size:12px;color:var(--fg);text-decoration:none}
+.links a:hover{background:var(--surface-2)}
+.reset{height:36px;border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:0 12px;cursor:pointer;font-weight:600;display:flex;gap:6px;align-items:center;white-space:nowrap}
+.reset:hover{background:var(--surface-2)}
+.cmode{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.cmode button{border:0;background:var(--surface);padding:4px 10px;cursor:pointer;font-size:12px;color:var(--muted)}
+.cmode button[aria-pressed="true"]{background:var(--surface-2);color:var(--fg);font-weight:600}
+.ramp{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ramp .sw{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+.ramp .sw i{width:12px;height:12px;border-radius:50%;margin:0}
+.insights{margin:0;padding:0;list-style:none;display:grid;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.insights li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px;font-size:13px}
+.insights li::before{content:"→";color:var(--muted);font-family:var(--font-mono)}
+.insights strong{font-variant-numeric:tabular-nums}
+.copy{justify-self:start;border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px}
+
+.views{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.views button{border:0;background:none;padding:10px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-size:15px}
+.views button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg)}
+.views .new{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;background:var(--fg);color:var(--bg);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:2px}
+.sim{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;align-items:start}
+@media (max-width: 960px){.sim{grid-template-columns:minmax(0,1fr)}}
+.simctl{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:grid;gap:14px;min-width:0}
+.simctl h2,.simout h2{font-family:var(--font-display);font-size:18px;font-weight:700;margin:0}
+.simctl p.hint{margin:0;color:var(--muted);font-size:13px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:500}
+.presets button:hover{background:var(--surface-2)}
+.grp{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--line)}
+.grp .q{display:flex;gap:8px;align-items:baseline}
+.grp .qn{flex:none;width:20px;height:20px;border-radius:50%;background:var(--fg);color:var(--bg);font-family:var(--font-mono);font-size:11px;display:grid;place-items:center}
+.ends{display:flex;justify-content:space-between;font-size:12px;font-weight:600;padding-left:178px;padding-right:138px}
+.adv summary{cursor:pointer;list-style:revert;font-size:14px}
+.adv .muted{color:var(--muted);font-weight:400;font-size:12px}
+.adv[open]{gap:10px}
+.sl.one label{grid-column:1 / -1;color:var(--fg)}
+.sl.tri{grid-template-columns:170px minmax(0,1fr) 130px}
+.sl.tri input[type=range]{accent-color:var(--fg);background:linear-gradient(90deg,var(--lula),var(--flavio));height:6px;border-radius:3px;appearance:none;-webkit-appearance:none}
+.sl.tri input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--surface);border:2px solid var(--fg);cursor:pointer}
+.sl.tri input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid var(--fg);cursor:pointer}
+.sl.tri label{color:var(--fg);font-weight:500}
+.sl.tri .muted{color:var(--muted);font-weight:400}
+.sl.one{grid-template-columns:minmax(0,1fr) 120px}
+.sl.tri.off{opacity:.4}
+.grp .gh{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.grp .gh strong{font-size:14px}
+.grp .gh span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.sl{display:grid;grid-template-columns:110px minmax(0,1fr) 120px;gap:8px;align-items:center;font-size:12px}
+.sl label{color:var(--muted)}
+.sl output{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.sl input[type=range]{width:100%;accent-color:var(--fg)}
+.sl.split input[type=range]{accent-color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:5px 10px;cursor:pointer;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface-2);color:var(--fg);font-weight:600}
+.simout{display:grid;gap:16px;min-width:0}
+.score{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:grid;gap:10px}
+.score .cands{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:10px}
+.score .c{display:grid;gap:2px}
+.score .c.r{text-align:right}
+.score .c .n{font-size:13px;font-weight:600}
+.score .c .p{font-family:var(--font-display);font-weight:800;font-size:clamp(32px,5vw,46px);line-height:1;font-variant-numeric:tabular-nums}
+.score .c .v{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.score .vs{font-family:var(--font-mono);color:var(--muted);font-size:12px;padding-bottom:8px}
+.score .L .p{color:var(--lula)} .score .F .p{color:var(--flavio)}
+.duel{height:14px;border-radius:3px;overflow:hidden;display:flex;position:relative;background:var(--surface-2)}
+.duel i{display:block;height:100%}
+.duel .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:var(--fg)}
+.verdict{font-size:14px;margin:0}
+.tipping{background:var(--surface-2);border-radius:4px;padding:10px 12px;font-size:13px;margin:0}
+.simmapcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;position:relative}
+.simmapbox{position:relative;height:clamp(320px,48vh,520px)}
+canvas#simmap{display:block;width:100%;height:100%}
+.ufgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;padding:12px}
+.uft{border-radius:4px;padding:6px 6px 5px;color:#fff;display:grid;gap:1px;position:relative}
+.uft b{font-family:var(--font-mono);font-size:12px}
+.uft span{font-size:11px;font-variant-numeric:tabular-nums;opacity:.95}
+.uft.flip::after{content:"virou";position:absolute;top:4px;right:5px;font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;background:rgba(0,0,0,.28);border-radius:2px;padding:0 3px}
+.ufhead{display:flex;justify-content:space-between;gap:8px;padding:12px 12px 0;flex-wrap:wrap;align-items:baseline}
+.ufhead h2{font-family:var(--font-display);font-size:18px;margin:0}
+.ufhead span{color:var(--muted);font-size:13px}
+.viewwrap{display:grid;gap:16px}
+.simbar{display:none}
+@media (max-width: 960px){
+  .simbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;justify-content:space-between;align-items:center;gap:8px;background:var(--surface);border-top:1px solid var(--line);padding:10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));box-shadow:0 -6px 18px rgba(0,0,0,.12);font-variant-numeric:tabular-nums}
+  .simbar[hidden]{display:none!important}
+  .simbar .bl{color:var(--lula);font-weight:800;font-family:var(--font-display);font-size:20px}
+  .simbar .bf{color:var(--flavio);font-weight:800;font-family:var(--font-display);font-size:20px}
+  .simbar small{color:var(--muted);font-size:11px;text-align:center}
+  #view-sim{padding-bottom:64px}
+  .sl{grid-template-columns:minmax(0,1fr) 92px}
+  .sl label{grid-column:1 / -1}
+  .sl.tri{grid-template-columns:minmax(0,1fr) 130px}
+  .ends{padding-left:0;padding-right:130px}
+}
+.plan{padding:12px;display:grid;gap:12px}
+.plan .lead{margin:0;font-size:13px}
+.plan .why{background:var(--surface-2);border-radius:var(--radius);padding:10px 12px;font-size:13px}
+.plan .why ol{margin:6px 0 0;padding-left:18px;display:grid;gap:3px}
+.plan .lead strong{font-variant-numeric:tabular-nums}
+.zone{border:1px solid var(--line);border-radius:var(--radius);display:grid;min-width:0}
+.zone>button{all:unset;cursor:pointer;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px}
+.zone>button:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
+.zone .zn{width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;display:grid;place-items:center;font-family:var(--font-mono);font-size:13px}
+.zone .zt{min-width:0}
+.zone .zt strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.zone .zt small{color:var(--muted);font-size:12px}
+.zone .zv{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.zone .zv small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.zone ol{margin:0;padding:0 12px 12px 50px;display:grid;gap:6px;font-size:12px}
+.zone ol li{cursor:pointer}
+.zone ol li:hover{text-decoration:underline}
+.zone ol small{color:var(--muted)}
+.plan .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.plan .actions .hint{font-size:12px;color:var(--muted)}
+.hright{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
+.tourbtn{border:0;background:var(--fg);color:var(--bg);border-radius:999px;padding:10px 16px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tourbtn:hover{opacity:.9}
+.caption{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom, 0px));z-index:40;width:min(720px, calc(100% - 32px));background:var(--fg);color:var(--bg);border-radius:10px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.3);display:grid;gap:10px}
+.caption p{margin:0;font-family:var(--font-display);font-size:clamp(18px,2.6vw,26px);font-weight:700;line-height:1.2;text-wrap:balance}
+.caption .cbar{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.caption .dots{display:flex;gap:6px}
+.caption .dots i{width:8px;height:8px;border-radius:50%;background:var(--bg);opacity:.3}
+.caption .dots i.on{opacity:1}
+.caption button{border:1px solid color-mix(in srgb,var(--bg) 40%,transparent);background:transparent;color:var(--bg);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:12px}
+@media (prefers-reduced-motion: no-preference){ .caption p{animation:capin .45s ease both} @keyframes capin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}} canvas#map{transition:opacity .35s} }
+.byline{margin:0;font-size:13px;color:var(--muted)}
+.byline a,footer a{color:var(--fg);font-weight:600;text-underline-offset:3px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top, 0px));z-index:45;width:min(560px, calc(100% - 32px));background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:13px}
+.notes{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:4px 14px}
+.notes summary{cursor:pointer;padding:10px 0;font-weight:600}
+.notes ul{margin:0 0 12px;padding-left:18px;display:grid;gap:6px;max-width:90ch;color:var(--muted)}
+.notes li strong{color:var(--fg)}
+footer{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">2º turno · dados do 1º turno de 4/10/2026 · 95 mil locais de votação</span>
+      <h1>Mobilização <span class="amp">e</span> Persuasão</h1>
+      <p class="byline">por <a href="https://www.linkedin.com/in/camilo-rosa/" target="_blank" rel="noopener">Camilo Rosa</a> · análise de dados</p>
+      <p class="sub">Onde estão, bairro por bairro, os eleitores que não foram votar e os votos que ficaram fora dos dois finalistas.</p>
+    </div>
+    <div class="hright">
+    <button type="button" class="tourbtn" id="tourbtn">▶ Ver em 30 segundos</button>
+    <div class="lens" role="group" aria-label="Lente">
+      <button type="button" id="lens-mob" data-lens="mob" aria-pressed="true"><span class="dot"></span>Mobilização</button>
+      <button type="button" id="lens-per" data-lens="per" aria-pressed="false"><span class="dot"></span>Persuasão</button>
+    </div>
+    </div>
+  </header>
+
+  <nav class="views" role="tablist" aria-label="Visões">
+    <button type="button" role="tab" id="view-map-tab" data-view="map" aria-selected="true">Mapa</button>
+    <button type="button" role="tab" id="view-sim-tab" data-view="sim" aria-selected="false">Simulador do 2º turno<span class="new">novo</span></button>
+  </nav>
+
+  <div id="view-map" class="viewwrap">
+  <section class="controls" aria-label="Filtros">
+    <div class="ctl"><label for="uf">Estado</label><select id="uf"></select></div>
+    <div class="ctl"><label for="mun">Município</label><select id="mun" disabled><option value="-1">Escolha um estado</option></select></div>
+    <div class="ctl"><label for="metric">O que medir</label><select id="metric"></select></div>
+    <div class="ctl"><label for="win">Quem venceu no local</label>
+      <select id="win"><option value="all">Todos os locais</option><option value="L">Onde Lula venceu</option><option value="F">Onde Flávio venceu</option></select></div>
+    <div class="ctl grow searchbox"><label for="q">Buscar cidade, bairro, escola ou CEP</label>
+      <input id="q" type="search" autocomplete="off" placeholder="Digite sua cidade, bairro ou CEP">
+      <div class="results" id="results" hidden></div></div>
+    <button type="button" class="reset" id="nearme" aria-label="Mostrar a região onde estou"><span aria-hidden="true">◎</span>Perto de mim</button>
+    <button type="button" class="reset" id="reset" aria-label="Limpar filtros e voltar ao Brasil"><span aria-hidden="true">↺</span>Limpar</button>
+  </section>
+
+  <nav class="crumbs" id="crumbs" aria-label="Recorte atual"></nav>
+
+  <div class="main">
+    <section class="mapcard" aria-label="Mapa">
+      <div class="mapbox" id="mapbox">
+        <canvas id="map" aria-label="Mapa de pontos dos locais de votação"></canvas>
+        <div class="mapctl"><button type="button" id="zin" aria-label="Aproximar">+</button><button type="button" id="zout" aria-label="Afastar">−</button><button type="button" id="zreset" aria-label="Enquadrar recorte">⤢</button></div>
+        <div class="tip" id="tip" hidden></div>
+        <div class="loading" id="loading">Carregando dados…</div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <div class="side">
+      <section class="panel summary" id="summary" aria-live="polite"></section>
+      <section class="panel detail" id="detail" hidden></section>
+      <section class="panel" aria-label="Ranking">
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="rankwrap" id="rankwrap"></div>
+      </section>
+    </div>
+  </div>
+
+  </div>
+
+  <section id="view-sim" hidden>
+    <div class="sim">
+      <div class="simctl" id="simctl">
+        <h2>Monte o seu cenário</h2>
+        <p class="hint">Começa com os votos de Lula e Flávio no 1º turno. Diga para quem vai cada grupo de eleitores em jogo e veja o resultado mudar.</p>
+        <div class="presets" id="presets">
+          <button type="button" data-p="eq">Recomeçar (metade para cada)</button>
+          <button type="button" data-p="L">Tudo para Lula</button>
+          <button type="button" data-p="F">Tudo para Flávio</button>
+        </div>
+        <div id="groups"></div>
+      </div>
+      <div class="simout">
+        <section class="score" id="score" aria-live="polite"></section>
+        <section class="simmapcard">
+          <div class="ufhead"><h2>Estados no seu cenário</h2><span id="ufcount"></span></div>
+          <div class="ufgrid" id="ufgrid"></div>
+          <div class="simmapbox"><canvas id="simmap" aria-label="Mapa dos municípios no cenário simulado"></canvas><div class="tip" id="simtip" hidden></div></div>
+          <div class="legend" id="simlegend"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+  <div class="simbar" id="simbar" hidden aria-live="polite"></div>
+
+  <details class="notes">
+    <summary>Como ler e de onde vêm os dados</summary>
+    <ul>
+      <li><strong>Mobilização</strong> mostra a abstenção: eleitores aptos que não compareceram no 1º turno. É o público de quem quer levar o eleitor até a urna.</li>
+      <li><strong>Persuasão</strong> mostra os votos que não foram para os dois finalistas: terceiros colocados (Augusto Cury, Renan Santos, Ronaldo Caiado, Zema e demais), brancos e nulos. É o público de quem quer convencer.</li>
+      <li><strong>Local de votação</strong> é o prédio onde ficam as seções: 84% dos eleitores votam em escolas, e o restante em universidades, clubes, igrejas e outros prédios. Ele funciona como retrato do bairro em volta.</li>
+      <li><strong>O dado é do local de votação, não da casa do eleitor.</strong> O TSE costuma alocar o eleitor perto de onde mora, mas não sempre. O CEP e o endereço são da escola.</li>
+      <li><strong>Não se sabe em quem quem se absteve votaria.</strong> O filtro "quem venceu no local" mostra apenas como votou quem compareceu naquela escola.</li>
+      <li><strong>Renda do entorno</strong> é uma estimativa: média do rendimento do responsável pelo domicílio nos setores censitários num raio de 1 km da escola (Censo 2022). Onde não há setor nesse raio, usa o setor onde a escola fica.</li>
+      <li>Totais conferidos com o TSE: 157,8 milhões de aptos, 32,9 milhões de abstenções e 109,7 milhões de votos nos dois finalistas no Brasil (sem o exterior). Cerca de 1% dos locais não tem coordenadas e aparece só no ranking.</li>
+      <li><strong>Simulador:</strong> parte dos votos de Lula e Flávio no 1º turno em cada município e aplica as premissas escolhidas a todos os municípios igualmente. Os votos em jogo são quem faltou no 1º turno e decidir votar, quem votou branco ou nulo e decidir escolher, e os eleitores dos candidatos que saíram. Não considera eleitores de Lula ou Flávio que mudem de voto ou deixem de votar, nem o voto no exterior (cerca de 0,9 milhão de eleitores). É uma calculadora de cenários, não uma previsão.</li>
+      <li><strong>Localização:</strong> se você permitir, a página usa sua posição só para abrir na sua região. Ela não é enviada nem guardada em lugar nenhum.</li>
+      <li>Fontes: TSE (votação por seção, detalhe da votação por seção e eleitorado por local de votação, 1º turno de 2026) e IBGE (Censo 2022, renda do responsável e malha de setores censitários). Dados públicos e agregados; não há informação de nenhum eleitor individual.</li>
+    </ul>
+  </details>
+  <div class="toast" id="toast" hidden role="status"></div>
+  <div class="caption" id="caption" hidden aria-live="polite"><p id="captxt"></p><div class="cbar"><span class="dots" id="capdots"></span><button type="button" id="capskip">Pular</button></div></div>
+  <footer><span>Criado por <a href="https://www.linkedin.com/in/camilo-rosa/" target="_blank" rel="noopener">Camilo Rosa</a> · linkedin.com/in/camilo-rosa</span><span id="foot"></span></footer>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const fmt = new Intl.NumberFormat("pt-BR");
+const fmt1 = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1,minimumFractionDigits:1});
+const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const short = n => n>=1e6 ? fmt1.format(n/1e6)+" mi" : n>=1e4 ? fmt.format(Math.round(n/1e3))+" mil" : fmt.format(n);
+const pct = (a,b) => b ? fmt1.format(a/b*100)+"%" : "–";
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+const METRICS = {
+  abst:  {lens:"mob", label:"Abstenção", base:"aptos", v:r=>r.abst},
+  per:   {lens:"per", label:"Todos os votos em disputa", base:"comparecimento", v:r=>r.cury+r.renan+r.caiado+r.zema+r.outros+r.br+r.nu},
+  terc:  {lens:"per", label:"Votos em terceiros", base:"comparecimento", v:r=>r.cury+r.renan+r.caiado+r.zema+r.outros},
+  bn:    {lens:"per", label:"Brancos e nulos", base:"comparecimento", v:r=>r.br+r.nu},
+  cury:  {lens:"per", label:"Votos em Augusto Cury", base:"comparecimento", v:r=>r.cury},
+  renan: {lens:"per", label:"Votos em Renan Santos", base:"comparecimento", v:r=>r.renan},
+  caiado:{lens:"per", label:"Votos em Ronaldo Caiado", base:"comparecimento", v:r=>r.caiado},
+  zema:  {lens:"per", label:"Votos em Zema", base:"comparecimento", v:r=>r.zema},
+};
+const baseOf = (r,m) => METRICS[m].base==="aptos" ? r.apt : r.apt - r.abst;
+const NUMK = ["apt","abst","F","L","cury","renan","caiado","zema","outros","br","nu"];
+const CEPUF = [[1000,19999,"SP"],[20000,28999,"RJ"],[29000,29999,"ES"],[30000,39999,"MG"],[40000,48999,"BA"],[49000,49999,"SE"],[50000,56999,"PE"],[57000,57999,"AL"],[58000,58999,"PB"],[59000,59999,"RN"],[60000,63999,"CE"],[64000,64999,"PI"],[65000,65999,"MA"],[66000,68899,"PA"],[68900,68999,"AP"],[69000,69299,"AM"],[69300,69399,"RR"],[69400,69899,"AM"],[69900,69999,"AC"],[70000,72799,"DF"],[72800,72999,"GO"],[73000,73699,"DF"],[73700,76799,"GO"],[76800,76999,"RO"],[77000,77999,"TO"],[78000,78899,"MT"],[79000,79999,"MS"],[80000,87999,"PR"],[88000,89999,"SC"],[90000,99999,"RS"]];
+const cepToUF = c => { const p = +String(c).slice(0,5); const h = CEPUF.find(([a,b])=>p>=a&&p<=b); return h ? h[2] : null; };
+
+const S = {sort:{k:"p",d:-1}, color:"rate", lens:"mob", metric:"abst", uf:"BR", mun:-1, win:"all", tab:null, sel:null, bairro:null, limit:60};
+let IDX=null, OUTL=null; const UFD = {};
+
+// ---------- carga ----------
+async function getJSON(p){ const r = await fetch(p); if(!r.ok) throw new Error(p+" "+r.status); return r.json(); }
+async function loadUF(uf){
+  if(UFD[uf]) return UFD[uf];
+  $("loading").hidden=false; $("loading").textContent="Carregando "+IDX.ufnome[uf]+"…";
+  const d = await getJSON("d/"+uf+".json"); const n = d.apt.length; const rows = new Array(n);
+  for(let i=0;i<n;i++){ const r={i,uf,mi:d.mi[i],mun:d.mun[d.mi[i]],nome:d.nome[i],bairro:d.bairro[i]||"Sem bairro",end:d.end[i],cep:d.cep[i],z:d.z[i],l:d.l[i],lat:d.lat[i],lon:d.lon[i],renda:d.renda[i],nsec:d.nsec[i]}; for(const k of NUMK) r[k]=d[k][i]; rows[i]=r; }
+  $("loading").hidden=true; return (UFD[uf] = {rows, mun:d.mun});
+}
+function munRows(){ const out=[]; for(const [uf,list] of Object.entries(IDX.uf)) list.forEach((a,j)=>{ const r={kind:"mun",uf,j,nome:a[0],lat:a[1],lon:a[2],nloc:a[3]}; NUMK.forEach((k,x)=>r[k]=a[4+x]); out.push(r); }); return out; }
+let MUNS=null;
+
+// ---------- recorte ----------
+function units(){
+  // pontos do mapa no recorte atual
+  if(S.uf==="BR") return MUNS||[];
+  const D=UFD[S.uf]; if(!D) return [];
+  return S.mun<0 ? D.rows : D.rows.filter(r=>r.mi===S.mun);
+}
+const winOf = r => r.L>r.F ? "L" : r.F>r.L ? "F" : "T";
+const passWin = r => S.win==="all" || winOf(r)===S.win;
+
+// ---------- cores por taxa ----------
+const hex2rgb=h=>{h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return [n>>16&255,n>>8&255,n&255];};
+const mix=(a,b,t)=>{const A=hex2rgb(a),B=hex2rgb(b);return `rgb(${A.map((v,i)=>Math.round(v*t+B[i]*(1-t))).join(",")})`;};
+const RAMP_T=[.28,.46,.64,.82,1];
+let BREAKS=[];
+const rateOf=(r,m)=>{const b=baseOf(r,m);return b>0?METRICS[m].v(r)/b:0;};
+function computeBreaks(){ const m=S.metric; const rs=units().filter(r=>passWin(r)&&baseOf(r,m)>0).map(r=>rateOf(r,m)).sort((a,b)=>a-b);
+  if(rs.length<5){BREAKS=[];return;} BREAKS=[.2,.4,.6,.8].map(q=>rs[Math.min(rs.length-1,Math.floor(q*rs.length))]); }
+const classOf=v=>{let c=0;while(c<BREAKS.length&&v>=BREAKS[c])c++;return c;};
+function rampColors(){ const lc=css(METRICS[S.metric].lens==="mob"?"--mob":"--per"), sf=css("--surface"); return RAMP_T.map(t=>mix(lc,sf,t)); }
+
+// ---------- mapa ----------
+const cv=$("map"), ctx=cv.getContext("2d"); let W=0,H=0,DPR=1;
+const V={k:1,tx:0,ty:0}; let BASEFIT=null;
+function lat0(){ const u=units().filter(r=>r.lat!=null); if(!u.length) return -15; return u.reduce((a,r)=>a+r.lat,0)/u.length; }
+const mercX=lon=>lon/360+.5, mercY=lat=>{ const s=Math.sin(Math.max(-85,Math.min(85,lat))*Math.PI/180); return .5-Math.log((1+s)/(1-s))/(4*Math.PI); };
+const px = (lon,lat) => [ mercX(lon)*V.k+V.tx, mercY(lat)*V.k+V.ty ];
+function fit(){
+  const u = units().filter(r=>r.lat!=null);
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  const pts = S.uf==="BR" ? [[-74,6],[-34,-34]] : u.map(r=>[r.lon,r.lat]);
+  for(const [lo,la] of pts){ const x=mercX(lo),y=mercY(la); x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y); }
+  if(!isFinite(x0)){x0=mercX(-74);x1=mercX(-34);y0=mercY(6);y1=mercY(-34);}
+  const pad=28, w=Math.max(x1-x0,0.02/360), h=Math.max(y1-y0,0.02/360);
+  V.k=Math.min((W-pad*2)/w,(H-pad*2)/h); V.tx=(W-(x0+x1)*V.k)/2; V.ty=(H-(y0+y1)*V.k)/2; BASEFIT={...V};
+}
+function resize(){ const b=$("mapbox").getBoundingClientRect(); DPR=window.devicePixelRatio||1; W=b.width;H=b.height; cv.width=W*DPR;cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+let DRAWN=[];
+function watermark(c,w,h){ c.save(); c.font='600 11px "IBM Plex Sans", "Segoe UI", system-ui, sans-serif'; c.textAlign="right"; c.textBaseline="bottom"; c.globalAlpha=.55; c.fillStyle=css("--muted"); c.fillText("Mobilização e Persuasão · por Camilo Rosa · linkedin.com/in/camilo-rosa",w-10,h-8);
+  if(c===ctx&&TILES.on&&TILES.ok){ c.textAlign="left"; c.globalAlpha=.75; c.fillText("© OpenStreetMap · © CARTO",10,h-8); } c.restore(); }
+function draw(){ drawCore(); watermark(ctx,W,H); }
+const TILES={on:true,ok:0,fail:0,cache:new Map()}; let tileRaf=0;
+const isDark=()=>{ const t=document.documentElement.getAttribute("data-theme"); return t? t==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+function drawTiles(){
+  if(!TILES.on||!BASEFIT) return false;
+  const z=Math.max(2,Math.min(18,Math.round(Math.log2(V.k/256)))), n=2**z, ts=V.k/n, style=isDark()?"dark_all":"light_all", r2=(window.devicePixelRatio||1)>1?"@2x":"";
+  const x0=Math.floor(-V.tx/ts), x1=Math.floor((W-V.tx)/ts), y0=Math.max(0,Math.floor(-V.ty/ts)), y1=Math.min(n-1,Math.floor((H-V.ty)/ts));
+  let drew=false;
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){ const wx=((tx%n)+n)%n, key=style+"/"+z+"/"+wx+"/"+ty; let img=TILES.cache.get(key);
+    if(!img){ img=new Image(); img.crossOrigin="anonymous"; img.onload=()=>{ img._ok=1; TILES.ok++; if(!tileRaf) tileRaf=requestAnimationFrame(()=>{tileRaf=0;draw();}); };
+      img.onerror=()=>{ img._ok=-1; TILES.fail++; if(TILES.fail>=6&&!TILES.ok){ TILES.on=false; draw(); } };
+      img.src=`https://${"abcd"[(wx+ty)%4]}.basemaps.cartocdn.com/${style}/${z}/${wx}/${ty}${r2}.png`; TILES.cache.set(key,img); if(TILES.cache.size>600){ TILES.cache.delete(TILES.cache.keys().next().value); } }
+    if(img._ok===1){ ctx.drawImage(img,V.tx+tx*ts,V.ty+ty*ts,ts+.6,ts+.6); drew=true; } }
+  return drew||TILES.ok>0;
+}
+function drawCore(){
+  ctx.clearRect(0,0,W,H);
+  const tilesOn=drawTiles();
+  const land=css("--map-land"), edge=css("--map-edge"), selE=css("--map-sel");
+  if(OUTL && S.mun<0){ for(const f of OUTL){ const on = S.uf==="BR"||f.uf===S.uf; ctx.beginPath(); for(const ring of f.r){ ring.forEach(([lo,la],i)=>{ const [x,y]=px(lo,la); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.closePath(); }
+      if(!tilesOn){ ctx.fillStyle=land; ctx.globalAlpha=on?1:.45; ctx.fill(); ctx.globalAlpha=1; } ctx.strokeStyle=on&&S.uf!=="BR"?selE:edge; ctx.lineWidth=on&&S.uf!=="BR"?1.2:.7; ctx.stroke(); } }
+  const m=S.metric, u=units().filter(r=>r.lat!=null);
+  let mx=0; for(const r of u) if(passWin(r)) mx=Math.max(mx,METRICS[m].v(r));
+  const zoomBoost=Math.min(2.2,Math.sqrt(V.k/(BASEFIT?BASEFIT.k:V.k)));
+  const rmax=(S.uf==="BR"?22:S.mun<0?12:20)*Math.max(1,zoomBoost*.8);
+  const col={L:css("--lula"),F:css("--flavio"),T:css("--tie")}, mute=css("--map-edge"); const ramp=rampColors();
+  const planOn = S.tab==="plano" && PLAN;
+  const colorOf=r=> planOn ? (PLAN.zoneOf.get(r)?.color || mute) : S.color==="rate" ? ramp[classOf(rateOf(r,m))] : col[winOf(r)];
+  const list=u.map(r=>{ const v=METRICS[m].v(r); const [x,y]=px(r.lon,r.lat); let rad=mx?Math.max(1.4,Math.sqrt(v/mx)*rmax):1.4; if(planOn&&!PLAN.zoneOf.has(r)) rad=Math.min(rad,2.2); return {r,v,x,y,rad,ok:passWin(r)}; });
+  list.sort((a,b)=>b.rad-a.rad);
+  if(S.color==="heat" && !planOn){ drawHeat(list,mx); DRAWN=list.filter(p=>p.ok);
+    if(S.sel&&S.sel.lat!=null){ const [x,y]=px(S.sel.lon,S.sel.lat); ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.strokeStyle=css("--fg"); ctx.lineWidth=2; ctx.stroke(); }
+    drawLabels(); return; }
+  for(const p of list){ if(p.ok) continue; ctx.beginPath(); ctx.arc(p.x,p.y,1.2,0,7); ctx.fillStyle=mute; ctx.fill(); }
+  ctx.lineWidth=.6;
+  for(const p of list){ if(!p.ok) continue; if(p.x<-30||p.x>W+30||p.y<-30||p.y>H+30) continue; ctx.beginPath(); ctx.arc(p.x,p.y,p.rad,0,7); const c=colorOf(p.r); ctx.fillStyle=c; ctx.globalAlpha=planOn?(PLAN.zoneOf.has(p.r)?.85:.35):S.color==="rate"?.82:.55; ctx.fill(); ctx.globalAlpha=.9; ctx.strokeStyle=S.color==="rate"?css("--surface"):c; ctx.stroke(); ctx.globalAlpha=1; }
+  const hl = S.sel ? [S.sel] : S.bairro ? u.filter(r=>r.mi===S.bairro.mi&&r.bairro===S.bairro.b) : [];
+  for(const r of hl){ if(r.lat==null) continue; const [x,y]=px(r.lon,r.lat); ctx.beginPath(); ctx.arc(x,y,Math.max(7,(list.find(p=>p.r===r)||{rad:6}).rad+4),0,7); ctx.strokeStyle=css("--fg"); ctx.lineWidth=2; ctx.stroke(); }
+  DRAWN=list.filter(p=>p.ok);
+  if(planOn){ drawZones(); return; }
+  drawLabels();
+}
+function drawZones(){
+  ctx.font='700 12px "IBM Plex Mono", ui-monospace, monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const z of PLAN.zones){ const [x,y]=px(z.lon,z.lat); ctx.beginPath(); ctx.arc(x,y,11,0,7); ctx.fillStyle=z.color; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=css("--surface"); ctx.stroke(); ctx.fillStyle="#fff"; ctx.fillText(String(z.n),x,y+.5); }
+}
+let HOFF=null, HLUT=null, HLUTKEY="";
+function heatLUT(){ const lc=css(METRICS[S.metric].lens==="mob"?"--mob":"--per"), key=lc+css("--fg"); if(HLUT&&HLUTKEY===key) return HLUT;
+  const c=document.createElement("canvas"); c.width=256;c.height=1; const g=c.getContext("2d"); const gr=g.createLinearGradient(0,0,256,0);
+  const hot=METRICS[S.metric].lens==="mob"?"#b3261e":"#0b3d91";
+  const lt=mix(lc,"#ffffff",.35).replace("rgb(","rgba(").replace(")",",0)"), lt2=mix(lc,"#ffffff",.35).replace("rgb(","rgba(").replace(")",",.55)"); gr.addColorStop(0,lt); gr.addColorStop(.1,lt2); gr.addColorStop(.22,mix(lc,"#ffffff",.35)); gr.addColorStop(.45,lc); gr.addColorStop(.8,hot); gr.addColorStop(1,mix(hot,"#000000",.6));
+  g.fillStyle=gr; g.fillRect(0,0,256,1); HLUT=g.getImageData(0,0,256,1).data; HLUTKEY=key; return HLUT; }
+function drawHeat(list,mx){
+  // densidade acumulada numa grade de meia resolução, normalizada pelo pico do recorte
+  const sc=2, gw=Math.max(1,Math.ceil(W/sc)), gh=Math.max(1,Math.ceil(H/sc)), acc=new Float32Array(gw*gh);
+  const zf=Math.sqrt(V.k/(BASEFIT?BASEFIT.k:V.k)); const R=Math.max(4,Math.min(26,(S.uf==="BR"?6:S.mun<0?7:11)*zf)), R2=R*R;
+  for(const p of list){ if(!p.ok||!p.v) continue; const cx=p.x/sc, cy=p.y/sc; if(cx<-R||cx>gw+R||cy<-R||cy>gh+R) continue;
+    const x0=Math.max(0,Math.floor(cx-R)), x1=Math.min(gw-1,Math.ceil(cx+R)), y0=Math.max(0,Math.floor(cy-R)), y1=Math.min(gh-1,Math.ceil(cy+R));
+    for(let y=y0;y<=y1;y++){ const dy=(y-cy)*(y-cy); for(let x=x0;x<=x1;x++){ const d=(x-cx)*(x-cx)+dy; if(d<R2){ const k=1-d/R2; acc[y*gw+x]+=p.v*k*k; } } } }
+  let nz=[]; for(let i=0;i<acc.length;i+=7) if(acc[i]>0) nz.push(acc[i]); if(!nz.length) return; nz.sort((a,b)=>a-b); const top=nz[Math.floor(nz.length*.995)]||nz[nz.length-1];
+  if(!HOFF) HOFF=document.createElement("canvas"); if(HOFF.width!==gw||HOFF.height!==gh){HOFF.width=gw;HOFF.height=gh;}
+  const o=HOFF.getContext("2d"); const img=o.createImageData(gw,gh), d=img.data, L=heatLUT();
+  for(let i=0;i<acc.length;i++){ const v=acc[i]; if(!v) continue; const t=Math.min(1,Math.pow(v/top,.6)); const j=Math.max(1,Math.round(t*255))*4; const q=i*4; d[q]=L[j];d[q+1]=L[j+1];d[q+2]=L[j+2];d[q+3]=Math.min(235,L[j+3]); }
+  o.putImageData(img,0,0); ctx.imageSmoothingEnabled=true; ctx.drawImage(HOFF,0,0,gw*sc,gh*sc);
+}
+let UFCENT=null;
+function drawLabels(){
+  let labs=[];
+  if(S.uf==="BR"){ if(!OUTL) return; if(!UFCENT) UFCENT=OUTL.map(f=>{const ring=f.r.reduce((a,b)=>b.length>a.length?b:a,[]);let x=0,y=0;ring.forEach(([lo,la])=>{x+=lo;y+=la;});return {t:f.uf,lon:x/ring.length,lat:y/ring.length,w:1e9};}); labs=UFCENT; }
+  else if(S.mun<0){ labs=(IDX.uf[S.uf]||[]).filter(a=>a[1]!=null).map(a=>({t:a[0],lat:a[1],lon:a[2],w:a[4]})).sort((a,b)=>b.w-a.w).slice(0,Math.round(14*Math.max(1,V.k/BASEFIT.k))); }
+  else if(V.k>BASEFIT.k*2.5){ if(TILES.on&&TILES.ok) labs=[]; else labs=DRAWN.filter(p=>p.x>0&&p.x<W&&p.y>0&&p.y<H).sort((a,b)=>b.v-a.v).map(p=>({t:p.r.end,lat:p.r.lat,lon:p.r.lon,dy:p.rad+9})); }
+  else { labs=aggregate(units(),r=>r.bairro,r=>({nome:r.bairro})).filter(o=>o.w&&o.lab.nome!=="Sem bairro").map(o=>({t:o.lab.nome,lat:o.lat/o.w,lon:o.lon/o.w,w:o.apt})).sort((a,b)=>b.w-a.w).slice(0,Math.round(28*Math.max(1,V.k/BASEFIT.k))); }
+  ctx.font='600 11px "IBM Plex Sans", "Segoe UI", system-ui, sans-serif'; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
+  const placed=[]; const halo=css("--surface"), ink=css("--fg");
+  if(S.sel&&S.sel.lat!=null&&!S.sel.kind) labs=[{t:S.sel.end,lat:S.sel.lat,lon:S.sel.lon,dy:16}].concat(labs);
+  for(const l of labs){ let [x,y]=px(l.lon,l.lat); y+=l.dy||0; if(x<0||x>W||y<0||y>H) continue; const w=ctx.measureText(l.t).width+6, h=14; const r=[x-w/2,y-h/2,x+w/2,y+h/2];
+    if(placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1])) continue; placed.push(r);
+    ctx.lineWidth=3.5; ctx.strokeStyle=halo; ctx.globalAlpha=.9; ctx.strokeText(l.t,x,y); ctx.globalAlpha=1; ctx.fillStyle=ink; ctx.fillText(l.t,x,y); }
+}
+const viewActive=()=> !!BASEFIT && V.k>BASEFIT.k*1.25;
+const inView=r=>{ if(r.lat==null) return false; const [x,y]=px(r.lon,r.lat); return x>=0&&x<=W&&y>=0&&y<=H; };
+const scoped=()=>{ const u=units(); return viewActive()? u.filter(inView) : u; };
+const scopeName=()=> S.uf==="BR" ? "do Brasil" : S.mun>=0 ? "de "+UFD[S.uf].mun[S.mun] : "de "+IDX.ufnome[S.uf];
+let rdT=null; function refreshData(){ clearTimeout(rdT); rdT=setTimeout(()=>{ summary(); renderRank(); crumbs(); },220); }
+function nearest(mx,my){ let best=null,bd=1e9; for(const p of DRAWN){ const d=Math.hypot(p.x-mx,p.y-my); if(d<Math.max(p.rad,7)&&d<bd){bd=d;best=p;} } return best; }
+
+// interação no mapa
+let drag=null, moved=false;
+cv.addEventListener("pointerdown",e=>{ drag={x:e.clientX,y:e.clientY,tx:V.tx,ty:V.ty}; moved=false; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove",e=>{
+  const b=cv.getBoundingClientRect(), mx=e.clientX-b.left, my=e.clientY-b.top;
+  if(drag){ const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3){moved=true;cv.classList.add("dragging");} if(moved){V.tx=drag.tx+dx;V.ty=drag.ty+dy;draw();refreshData();} return; }
+  const p=nearest(mx,my); const t=$("tip");
+  if(!p){t.hidden=true;return;}
+  const r=p.r, m=S.metric, v=METRICS[m].v(r);
+  t.innerHTML=`<b>${esc(r.nome)}</b>${r.kind==="mun"?esc(r.uf):esc(r.end)+"<br>"+esc(r.bairro)+" · "+esc(r.mun)}<br>${METRICS[m].label}: <strong>${fmt.format(v)}</strong> (${pct(v,baseOf(r,m))})`;
+  t.hidden=false; const tw=t.offsetWidth, th=t.offsetHeight; t.style.left=Math.min(W-tw-6,mx+12)+"px"; t.style.top=Math.max(6,my-th-10)+"px";
+});
+const endDrag=e=>{ if(drag&&!moved){ const b=cv.getBoundingClientRect(); const p=nearest(e.clientX-b.left,e.clientY-b.top); if(p) pick(p.r); } drag=null; cv.classList.remove("dragging"); };
+cv.addEventListener("pointerup",endDrag); cv.addEventListener("pointercancel",()=>{drag=null;cv.classList.remove("dragging");});
+cv.addEventListener("pointerleave",()=>{$("tip").hidden=true;});
+function zoomAt(f,mx,my){ const k2=Math.max(BASEFIT.k*.6,Math.min(BASEFIT.k*400,V.k*f)); const r=k2/V.k; V.tx=mx-(mx-V.tx)*r; V.ty=my-(my-V.ty)*r; V.k=k2; draw(); refreshData(); }
+cv.addEventListener("wheel",e=>{ e.preventDefault(); const b=cv.getBoundingClientRect(); zoomAt(e.deltaY<0?1.25:0.8,e.clientX-b.left,e.clientY-b.top); },{passive:false});
+$("zin").onclick=()=>zoomAt(1.5,W/2,H/2); $("zout").onclick=()=>zoomAt(1/1.5,W/2,H/2); $("zreset").onclick=()=>{fit();draw();refreshData();};
+
+// ---------- painel de resumo ----------
+function summary(){
+  const m=S.metric, u=scoped().filter(passWin);
+  const tot=u.reduce((a,r)=>a+METRICS[m].v(r),0), base=u.reduce((a,r)=>a+baseOf(r,m),0);
+  const vals=u.map(r=>METRICS[m].v(r)).sort((a,b)=>b-a); let acc=0,k=0; while(k<vals.length&&acc<tot/2){acc+=vals[k];k++;}
+  const unit = S.uf==="BR" ? ["municípios","município"] : ["locais de votação","local"];
+  const where = viewActive() ? "na área visível do mapa" : S.uf==="BR" ? "no Brasil" : S.mun>=0 ? "em "+UFD[S.uf].mun[S.mun] : "em "+IDX.ufnome[S.uf];
+  const winTxt = S.win==="all" ? "" : S.win==="L" ? ", só onde Lula venceu" : ", só onde Flávio venceu";
+  const lensTxt = METRICS[m].lens==="mob" ? "eleitores que não foram votar" : "votos fora dos dois finalistas";
+  $("summary").className="panel summary lens-"+METRICS[m].lens;
+  $("summary").innerHTML=`<div class="lensbar" aria-hidden="true"></div>
+   <h2>${esc(METRICS[m].label)} ${esc(where)}${esc(winTxt)}</h2>
+   <div class="kpis">
+     <div class="kpi"><span class="v">${short(tot)}</span><span class="l">${lensTxt}</span></div>
+     <div class="kpi"><span class="v">${pct(tot,base)}</span><span class="l">do ${METRICS[m].base==="aptos"?"eleitorado apto":"comparecimento"}</span></div>
+     <div class="kpi"><span class="v">${fmt.format(u.length)}</span><span class="l">${unit[0]}</span></div>
+   </div>
+   ${tot?`<ul class="insights">${insights(u,tot,base,k,unit,where).map(t=>`<li><span>${t}</span></li>`).join("")}</ul>`:`<p class="insight">Nenhum local neste recorte.</p>`}`;
+}
+function insights(u,tot,base,k,unit,where){
+  const m=S.metric, out=[], rate=tot/base, b=x=>`<strong>${x}</strong>`;
+  const noun=METRICS[m].lens==="mob"?"a abstenção":"o voto em disputa";
+  out.push(`Metade desse público está em ${b(fmt.format(k))} ${unit[0]} (${b(pct(k,u.length))} do total). Concentrar a ação neles alcança 50% do público ${where}.`);
+  // comparação com a média do nível acima
+  let par=null, parName="";
+  if(viewActive()){ par=units().filter(passWin); parName=scopeName(); }
+  else if(S.uf!=="BR"&&S.mun>=0){ par=UFD[S.uf].rows.filter(passWin); parName="do estado"; }
+  else if(S.uf!=="BR"){ par=MUNS.filter(passWin); parName="do Brasil"; }
+  if(par){ const pt=par.reduce((a,r)=>a+METRICS[m].v(r),0), pb=par.reduce((a,r)=>a+baseOf(r,m),0); if(pb){ const pr=pt/pb, d=(rate-pr)*100;
+    out.push(Math.abs(d)<0.5?`Aqui ${noun} (${b(pct(tot,base))}) está na média ${parName} (${pct(pt,pb)}).`
+      :`Aqui ${noun} é ${b(fmt1.format(Math.abs(d))+" ponto"+(Math.abs(d)>=2?"s":""))} ${d>0?"maior":"menor"} que a média ${parName}: ${pct(tot,base)} contra ${pct(pt,pb)}.`); } }
+  // divisão por quem venceu
+  if(S.win==="all"){ const vl=u.filter(r=>winOf(r)==="L").reduce((a,r)=>a+METRICS[m].v(r),0), vf=u.filter(r=>winOf(r)==="F").reduce((a,r)=>a+METRICS[m].v(r),0);
+    out.push(`${b(pct(vl,tot))} desse público está em ${unit[0]} onde Lula venceu e ${b(pct(vf,tot))} onde Flávio venceu.`); }
+  // maior área do nível abaixo
+  let sub=null, subNoun="";
+  if(S.uf==="BR"){ sub=aggregate(u,r=>r.uf,r=>({nome:IDX.ufnome[r.uf]})); subNoun="O estado"; }
+  else if(S.mun<0){ sub=aggregate(u,r=>r.mi,r=>({nome:r.mun})); subNoun="O município"; }
+  else { sub=aggregate(u,r=>r.bairro,r=>({nome:r.bairro})).filter(o=>o.lab.nome!=="Sem bairro"); subNoun="O bairro"; }
+  if(sub&&sub.length>1){ const top=sub.map(o=>({o,v:METRICS[m].v(o)})).sort((a,c)=>c.v-a.v)[0];
+    out.push(`${subNoun} com mais ${METRICS[m].label.replace("Todos os ","").replace(/^./,c=>c.toLowerCase())} é ${b(esc(top.o.lab.nome))}: ${fmt.format(top.v)} (${pct(top.v,tot)} do recorte).`); }
+  return out;
+}
+
+// ---------- ranking ----------
+function tabsFor(){ return S.uf==="BR" ? [["mun","Municípios"],["uf","Estados"]] : [["loc","Locais de votação"],["bairro","Bairros"]].concat(S.mun<0?[["mun","Municípios"]]:[]).concat([["plano","Plano de ação"]]); }
+function aggregate(rows,keyFn,labelFn){
+  const g=new Map(); for(const r of rows){ const k=keyFn(r); let o=g.get(k); if(!o){o={key:k,lab:labelFn(r),n:0,lat:0,lon:0,w:0,mi:r.mi,b:r.bairro,uf:r.uf,j:r.j}; NUMK.forEach(x=>o[x]=0); g.set(k,o);} o.n+=r.nloc||1; NUMK.forEach(x=>o[x]+=r[x]); if(r.lat!=null){const w=Math.max(r.apt,1);o.lat+=r.lat*w;o.lon+=r.lon*w;o.w+=w;} }
+  return [...g.values()];
+}
+function rankRows(){
+  const m=S.metric, base=scoped(); let rows, kind=S.tab;
+  if(kind==="loc"||(S.uf==="BR"&&kind==="mun")) rows=base.filter(passWin);
+  else if(kind==="bairro") rows=aggregate(base.filter(passWin),r=>r.mi+"|"+r.bairro,r=>({nome:r.bairro,sub:r.mun})).map(o=>Object.assign(o,{kind:"bairro"}));
+  else if(kind==="mun") rows=aggregate(base.filter(passWin),r=>r.mi,r=>({nome:r.mun,sub:IDX.ufnome[r.uf]})).map(o=>Object.assign(o,{kind:"munagg"}));
+  else if(kind==="uf") rows=aggregate(base.filter(passWin),r=>r.uf,r=>({nome:IDX.ufnome[r.uf],sub:r.uf})).map(o=>Object.assign(o,{kind:"uf"}));
+  const minApt = S.sort.k==="p" ? (kind==="loc"?300:kind==="uf"?0:1000) : 0;
+  const k=S.sort.k, d=S.sort.d;
+  const val=x=> k==="v"?x.v : k==="p"?x.p : k==="renda"?(x.r.renda??-1) : (x.r.n||x.r.nloc||0);
+  return rows.map(r=>{const v=METRICS[m].v(r), b=baseOf(r,m); return {r,v,b,p:b?v/b:0};})
+    .filter(x=>x.v>0 && x.r.apt>=minApt).sort((a,b)=>d*(val(a)-val(b)) || b.v-a.v);
+}
+function minNote(){ if(S.sort.k!=="p") return ""; const t=S.tab; const n=t==="loc"?300:t==="uf"?0:1000; if(!n) return "";
+  const what=t==="loc"?"locais":t==="bairro"?"bairros":"municípios"; return `<div class="sortnote">Ordenado pela taxa. Só aparecem ${what} com ${fmt.format(n)} ou mais eleitores aptos, para evitar que locais muito pequenos dominem o topo.</div>`; }
+function renderRank(){
+  const tabs=tabsFor(); if(!tabs.some(t=>t[0]===S.tab)) S.tab=tabs[0][0];
+  $("tabs").innerHTML=tabs.map(([k,l])=>`<button role="tab" id="tab-${k}" aria-selected="${k===S.tab}" data-tab="${k}">${l}</button>`).join("");
+  if(S.tab==="plano"){ renderPlan(); return; }
+  PLAN=null;
+  const isLoc=S.tab==="loc";
+  if((!isLoc&&S.sort.k==="renda")||(isLoc&&S.sort.k==="n")) S.sort={k:"p",d:-1};
+  const list=rankRows(), m=S.metric;
+  if(!list.length){ $("rankwrap").innerHTML=`<div class="empty">Nenhum resultado com estes filtros.</div>`; return; }
+  const sh=(key,lab,title)=>{ const on=S.sort.k===key; return `<th class="num"${on?` aria-sort="${S.sort.d<0?"descending":"ascending"}"`:""}><button type="button" data-sort="${key}" title="${title}">${lab}${on?(S.sort.d<0?" ↓":" ↑"):""}</button></th>`; };
+  const head=`<thead><tr><th>#</th><th>${S.tab==="loc"?"Local":S.tab==="bairro"?"Bairro":S.tab==="uf"?"Estado":"Município"}</th>${sh("v",METRICS[m].lens==="mob"?"Abstenção":"Votos","Ordenar pelo total")}${sh("p","%","Ordenar pela taxa")}${isLoc?sh("renda","Renda","Ordenar pela renda do entorno"):sh("n","Locais","Ordenar pelo número de locais")}<th>Venceu</th></tr></thead>`;
+  const body=list.slice(0,S.limit).map((x,i)=>{ const r=x.r; const lab=r.lab||{nome:r.nome,sub:r.kind==="mun"?IDX.ufnome[r.uf]:r.bairro+" · "+r.mun};
+    const w=winOf(r), marg=(r.L+r.F)? Math.abs(r.L-r.F)/(r.L+r.F+r.cury+r.renan+r.caiado+r.zema+r.outros)*100:0;
+    const chip=`<span class="chip ${w}">${w==="L"?"Lula":w==="F"?"Flávio":"Empate"}${w!=="T"?" +"+fmt.format(Math.round(marg)):""}</span>`;
+    const isSel = S.sel===r || (S.bairro&&r.kind==="bairro"&&S.bairro.mi===r.mi&&S.bairro.b===r.b);
+    return `<tr data-i="${i}" class="${isSel?"sel":""}" tabindex="0"><td class="pos">${i+1}</td><td><div class="nm">${esc(lab.nome)}<small>${esc(lab.sub)}</small></div></td><td class="num">${fmt.format(x.v)}</td><td class="num">${pct(x.v,x.b)}</td>${isLoc?`<td class="num">${r.renda!=null?brl.format(r.renda):"–"}</td>`:`<td class="num">${fmt.format(r.n||r.nloc||0)}</td>`}<td>${chip}</td></tr>`; }).join("");
+  $("rankwrap").innerHTML=`${minNote()}<table class="rank">${head}<tbody>${body}</tbody></table>${list.length>S.limit?`<button class="more" id="more" type="button">Mostrar mais (${fmt.format(list.length-S.limit)} restantes)</button>`:""}`;
+  $("rankwrap").querySelectorAll("tbody tr").forEach(tr=>{ const go=()=>pick(list[+tr.dataset.i].r,true); tr.onclick=go; tr.onkeydown=e=>{ if(e.key==="Enter") go(); }; });
+  const mb=$("more"); if(mb) mb.onclick=()=>{S.limit+=100;renderRank();};
+  $("rankwrap").querySelectorAll("th button[data-sort]").forEach(b=>b.onclick=()=>{ const k=b.dataset.sort; S.sort = S.sort.k===k ? {k,d:-S.sort.d} : {k,d:-1}; S.limit=60; renderRank(); });
+}
+$("tabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-tab]"); if(!b) return; S.tab=b.dataset.tab; S.limit=60; renderRank(); legend(); draw(); });
+
+// ---------- plano de ação ----------
+const ZCOL=["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#c99a00","#a6761d","#1f78b4","#6a3d9a","#b15928"];
+let PLAN=null;
+function buildPlan(){
+  const m=S.metric, all=units().filter(r=>passWin(r)&&r.lat!=null);
+  const tot=all.reduce((a,r)=>a+METRICS[m].v(r),0); if(!tot) return null;
+  const sorted=[...all].sort((a,b)=>METRICS[m].v(b)-METRICS[m].v(a)); const pri=[]; let acc=0;
+  for(const r of sorted){ if(acc>=tot/2) break; pri.push(r); acc+=METRICS[m].v(r); }
+  const c=Math.cos((pri.reduce((a,r)=>a+r.lat,0)/pri.length)*Math.PI/180);
+  const P=pri.map(r=>({r,x:r.lon*c*111.32,y:r.lat*110.57,w:METRICS[m].v(r)}));
+  const K=Math.max(1,Math.min(10,P.length<6?1:Math.round(P.length/10)));
+  // k-means com início determinístico: maior local, depois o mais distante dos já escolhidos (ponderado)
+  const C=[{x:P[0].x,y:P[0].y}];
+  while(C.length<K){ let best=null,bd=-1; for(const p of P){ const d=Math.min(...C.map(q=>(p.x-q.x)**2+(p.y-q.y)**2))*Math.sqrt(p.w); if(d>bd){bd=d;best=p;} } C.push({x:best.x,y:best.y}); }
+  let asg=new Array(P.length).fill(0);
+  for(let it=0;it<30;it++){
+    asg=P.map(p=>{ let bi=0,bd=1e18; C.forEach((q,i)=>{const d=(p.x-q.x)**2+(p.y-q.y)**2; if(d<bd){bd=d;bi=i;}}); return bi; });
+    const S2=C.map(()=>({x:0,y:0,w:0})); P.forEach((p,i)=>{const z=S2[asg[i]]; z.x+=p.x*p.w; z.y+=p.y*p.w; z.w+=p.w;});
+    let mv=0; S2.forEach((z,i)=>{ if(z.w){ const nx=z.x/z.w, ny=z.y/z.w; mv+=Math.abs(nx-C[i].x)+Math.abs(ny-C[i].y); C[i]={x:nx,y:ny}; } }); if(mv<1e-6) break;
+  }
+  let zones=C.map((q,i)=>({i,pts:P.filter((p,j)=>asg[j]===i)})).filter(z=>z.pts.length);
+  for(const z of zones){
+    z.v=z.pts.reduce((a,p)=>a+p.w,0); z.base=z.pts.reduce((a,p)=>a+baseOf(p.r,m),0);
+    const cx=z.pts.reduce((a,p)=>a+p.x*p.w,0)/z.v, cy=z.pts.reduce((a,p)=>a+p.y*p.w,0)/z.v;
+    z.lon=cx/(c*111.32); z.lat=cy/110.57; z.raio=Math.max(...z.pts.map(p=>Math.hypot(p.x-cx,p.y-cy)));
+    const bb={}; for(const p of z.pts){ bb[p.r.bairro]=(bb[p.r.bairro]||0)+p.w; } z.bairros=Object.entries(bb).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).filter(b=>b!=="Sem bairro");
+    // roteiro: começa no maior local e segue sempre para o vizinho mais próximo
+    const rest=[...z.pts].sort((a,b)=>b.w-a.w); const route=[rest.shift()];
+    while(rest.length){ const l=route[route.length-1]; let bi=0,bd=1e18; rest.forEach((p,i)=>{const d=(p.x-l.x)**2+(p.y-l.y)**2; if(d<bd){bd=d;bi=i;}}); route.push(rest.splice(bi,1)[0]); }
+    z.route=route;
+  }
+  zones.sort((a,b)=>b.v-a.v); zones.forEach((z,i)=>{ z.n=i+1; z.color=ZCOL[i%ZCOL.length]; });
+  const zoneOf=new Map(); zones.forEach(z=>z.pts.forEach(p=>zoneOf.set(p.r,z)));
+  return {zones,zoneOf,tot,acc,nPri:pri.length,nAll:all.length,m};
+}
+function renderPlan(){
+  const w=$("rankwrap");
+  if(S.mun<0){ PLAN=null; w.innerHTML=`<div class="empty"><strong>Plano de ação</strong><br>Mostra onde concentrar a campanha para alcançar metade do público em jogo visitando o menor número de lugares, organizado em zonas e roteiros.<br><br>Escolha um município para montar o plano.</div>`; return; }
+  PLAN=buildPlan();
+  if(!PLAN){ w.innerHTML=`<div class="empty">Nenhum público em jogo com estes filtros.</div>`; return; }
+  const m=S.metric, mun=UFD[S.uf].mun[S.mun], what=METRICS[m].lens==="mob"?"abstenções":"votos em disputa";
+  const winTxt=S.win==="all"?"":S.win==="L"?" nos locais onde Lula venceu":" nos locais onde Flávio venceu";
+  const km=v=>v<1?"menos de 1 km":fmt1.format(v)+" km";
+  w.innerHTML=`<div class="plan">
+    <div class="why"><strong>Para que serve:</strong> mostrar onde concentrar a campanha para alcançar <strong>metade do público em jogo</strong> visitando o menor número de lugares.
+      <ol><li>Separamos os locais de votação com mais ${what} até somar 50% do total da cidade.</li><li>Juntamos os que ficam perto uns dos outros em <strong>zonas</strong>, que podem ser cobertas por uma mesma equipe.</li><li>A zona 1 é a que tem mais público. Dentro de cada zona, a lista é o <strong>roteiro</strong> sugerido de visita.</li></ol></div>
+    <p class="lead">${esc(METRICS[m].label)} em ${esc(mun)}${winTxt}: <strong>${fmt.format(PLAN.nPri)}</strong> dos ${fmt.format(PLAN.nAll)} locais de votação somam <strong>${pct(PLAN.acc,PLAN.tot)}</strong> do público (${fmt.format(PLAN.acc)} ${what}). Eles foram agrupados em <strong>${PLAN.zones.length} ${PLAN.zones.length>1?"zonas":"zona"}</strong> por proximidade.${(()=>{const miss=units().filter(passWin).length-PLAN.nAll; return miss>0?` ${fmt.format(miss)} ${miss>1?"locais sem coordenadas ficam":"local sem coordenadas fica"} fora do plano.`:"";})()}</p>
+    <div class="actions"><button type="button" class="copy" id="plancopy">Copiar plano</button><span class="hint">Clique numa zona para vê-la no mapa.</span></div>
+    ${PLAN.zones.map(z=>`<div class="zone"><button type="button" data-z="${z.n}"><span class="zn" style="background:${z.color}">${z.n}</span><span class="zt"><strong>${esc(z.bairros.slice(0,3).join(", ")||"Zona "+z.n)}</strong><small>${fmt.format(z.pts.length)} locais · raio de ${km(z.raio)}</small></span><span class="zv">${fmt.format(z.v)}<small>${pct(z.v,PLAN.acc)} do plano</small></span></button>
+      <ol>${z.route.map(p=>`<li data-z="${z.n}" data-k="${esc(p.r.uf+"|"+p.r.i)}">${esc(p.r.nome)} · <small>${esc(p.r.end)}, ${esc(p.r.bairro)} · ${fmt.format(p.w)}</small></li>`).join("")}</ol></div>`).join("")}
+  </div>`;
+  w.querySelectorAll(".zone>button").forEach(b=>b.onclick=()=>{ const z=PLAN.zones[+b.dataset.z-1]; focusOn(z.pts.map(p=>p.r)); S.sel=null; draw(); summary(); crumbs(); });
+  w.querySelectorAll(".zone li").forEach(li=>li.onclick=()=>{ const z=PLAN.zones[+li.dataset.z-1]; const p=z.route.find(q=>(q.r.uf+"|"+q.r.i)===li.dataset.k); if(p){ S.sel=p.r; focusOn([p.r],0.03); detail(); draw(); summary(); crumbs(); $("detail").scrollIntoView({block:"nearest",behavior:"smooth"}); } });
+  $("plancopy").onclick=async()=>{
+    const lines=[`PLANO DE AÇÃO · ${METRICS[m].label} · ${mun}/${S.uf}${winTxt}`,`${fmt.format(PLAN.nPri)} locais somam ${pct(PLAN.acc,PLAN.tot)} do público (${fmt.format(PLAN.acc)} ${what}), em ${PLAN.zones.length} zonas.`,""];
+    PLAN.zones.forEach(z=>{ lines.push(`ZONA ${z.n} · ${z.bairros.slice(0,3).join(", ")} · ${fmt.format(z.v)} ${what} · ${z.pts.length} locais`); z.route.forEach((p,i)=>lines.push(`  ${i+1}. ${p.r.nome} · ${p.r.end}, ${p.r.bairro}${p.r.cep?" · CEP "+p.r.cep.slice(0,5)+"-"+p.r.cep.slice(5):""} · ${fmt.format(p.w)}`)); lines.push(""); });
+    lines.push("Fonte: TSE (1º turno 2026) · Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj");
+    const b=$("plancopy"); try{ await navigator.clipboard.writeText(lines.join("\n")); b.textContent="Plano copiado"; }catch(e){ b.textContent="Não foi possível copiar"; } };
+}
+
+// ---------- ficha do local ----------
+function detail(){
+  const d=$("detail"); const r=S.sel; if(!r||r.kind){ d.hidden=true; return; }
+  const comp=r.apt-r.abst, val=r.F+r.L+r.cury+r.renan+r.caiado+r.zema+r.outros;
+  const bars=[["Lula",r.L,"--lula"],["Flávio",r.F,"--flavio"],["Cury",r.cury,"--per"],["Renan",r.renan,"--per"],["Caiado",r.caiado,"--per"],["Zema",r.zema,"--per"],["Outros",r.outros,"--per"],["Brancos/nulos",r.br+r.nu,"--tie"]];
+  const mx=Math.max(...bars.map(b=>b[1]),1);
+  d.innerHTML=`<div class="head"><div><span class="eyebrow">Zona ${r.z} · local ${r.l} · ${r.nsec} ${r.nsec===1?"seção":"seções"}</span><h3>${esc(r.nome)}</h3>
+    <div class="addr">${esc(r.end)} · ${esc(r.bairro)} · ${esc(r.mun)}/${r.uf}${r.cep?" · CEP "+r.cep.slice(0,5)+"-"+r.cep.slice(5):""}</div></div>
+    <button class="x" id="closedet" type="button" aria-label="Fechar ficha">×</button></div>
+   <div class="facts">
+     <div><span class="v">${fmt.format(r.apt)}</span><span class="l">aptos</span></div>
+     <div><span class="v">${fmt.format(r.abst)} (${pct(r.abst,r.apt)})</span><span class="l">não votaram</span></div>
+     <div><span class="v">${r.renda!=null?brl.format(r.renda):"–"}</span><span class="l">renda média do entorno*</span></div>
+   </div>
+   <div class="bars" aria-label="Votos no 1º turno">${bars.map(([n,v,c])=>`<div class="bar"><span>${n}</span><span class="track"><span class="fill" style="display:block;width:${v/mx*100}%;background:var(${c})"></span></span><span class="n">${fmt.format(v)} · ${pct(v,comp)}</span></div>`).join("")}</div>
+   <div class="links"><button class="copy" type="button" id="copyaddr">Copiar endereço</button>${r.lat!=null?`<a href="https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}" target="_blank" rel="noopener">Ver no Google Maps ↗</a><a href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=17/${r.lat}/${r.lon}" target="_blank" rel="noopener">OpenStreetMap ↗</a>`:""}</div>`;
+  d.hidden=false;
+  $("closedet").onclick=()=>{S.sel=null;render(false);};
+  $("copyaddr").onclick=async()=>{ const t=`${r.nome} — ${r.end}, ${r.bairro}, ${r.mun}/${r.uf}${r.cep?", CEP "+r.cep.slice(0,5)+"-"+r.cep.slice(5):""}`; const b=$("copyaddr");
+    try{ await navigator.clipboard.writeText(t); b.textContent="Endereço copiado"; }catch(e){ const s=window.getSelection(), rg=document.createRange(); rg.selectNodeContents(d.querySelector(".addr")); s.removeAllRanges(); s.addRange(rg); b.textContent="Selecionado: use Ctrl+C"; } };
+}
+
+// ---------- navegação ----------
+async function pick(r,zoom){
+  if(r.kind==="mun"||r.kind==="munagg"){ await setUF(r.uf,false); setMun(r.kind==="mun"?r.j:r.mi); return; }
+  if(r.kind==="uf"){ await setUF(r.uf); return; }
+  if(r.kind==="bairro"){ S.bairro={mi:r.mi,b:r.b}; S.sel=null; S.tab="loc"; if(S.mun!==r.mi){ setMun(r.mi,false); } focusOn(units().filter(x=>x.mi===r.mi&&x.bairro===r.b)); render(false); return; }
+  S.sel=r; S.bairro=null;
+  if(S.mun<0 && r.mi!=null){ S.mun=r.mi; $("mun").value=String(r.mi); S.tab="loc"; S.limit=60; fit(); }
+  if(r.lat!=null && (zoom || !inView(r))) focusOn([r],0.03);
+  render(false); $("detail").scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+function focusOn(rs,minSpan=0.02){ const u=rs.filter(r=>r.lat!=null); if(!u.length) return; let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const r of u){const x=mercX(r.lon),y=mercY(r.lat);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);} const w=Math.max(x1-x0,minSpan/360),h=Math.max(y1-y0,minSpan/360),pad=40; V.k=Math.min((W-pad*2)/w,(H-pad*2)/h); V.tx=(W-(x0+x1)*V.k)/2; V.ty=(H-(y0+y1)*V.k)/2; }
+async function setUF(uf,doRender=true){
+  S.uf=uf; S.mun=-1; S.sel=null; S.bairro=null; S.limit=60; S.tab=null; $("uf").value=uf;
+  if(uf!=="BR") await loadUF(uf);
+  fillMun(); fit(); if(doRender) render(); writeHash();
+}
+const slug=t=>String(t).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+function setMun(j,doRender=true){ S.mun=+j; S.sel=null; S.bairro=null; S.limit=60; $("mun").value=String(S.mun); S.tab="loc"; fit(); if(doRender) render();
+  if(S.mun>=0&&!TOUR){ try{ localStorage.setItem("m2t_ultima_cidade",JSON.stringify({uf:S.uf,mun:UFD[S.uf].mun[S.mun]})); }catch(e){} } }
+async function openCity(uf,name){ if(!IDX.ufnome[uf]) return false; await setUF(uf,false); const j=UFD[uf].mun.findIndex(n=>slug(n)===slug(name)); if(j<0) return false; setMun(j,false); return true; }
+function fillMun(){
+  const s=$("mun"); if(S.uf==="BR"){ s.innerHTML=`<option value="-1">Escolha um estado</option>`; s.disabled=true; return; }
+  const names=UFD[S.uf].mun.map((n,j)=>[n,j]).sort((a,b)=>a[0].localeCompare(b[0],"pt-BR"));
+  const big=(IDX.uf[S.uf]||[]).map((a,i)=>[a[0],a[4]]).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
+  const bigOpts=names.filter(([n])=>big.includes(n)).sort((a,b)=>big.indexOf(a[0])-big.indexOf(b[0]));
+  s.innerHTML=`<option value="-1">Todos (${names.length})</option><optgroup label="Maiores cidades">${bigOpts.map(([n,j])=>`<option value="${j}">${esc(n)}</option>`).join("")}</optgroup><optgroup label="Todas, de A a Z">`+names.map(([n,j])=>`<option value="${j}">${esc(n)}</option>`).join("")+`</optgroup>`; s.disabled=false; s.value=String(S.mun);
+}
+function crumbs(){
+  const c=[`<button type="button" data-go="BR">Brasil</button>`];
+  if(S.uf!=="BR"){ c.push(`<span class="sep">/</span>`); c.push(S.mun<0&&!S.bairro?`<strong>${esc(IDX.ufnome[S.uf])}</strong>`:`<button type="button" data-go="${S.uf}">${esc(IDX.ufnome[S.uf])}</button>`); }
+  if(S.mun>=0){ c.push(`<span class="sep">/</span>`); c.push(S.bairro?`<button type="button" data-mun="${S.mun}">${esc(UFD[S.uf].mun[S.mun])}</button>`:`<strong>${esc(UFD[S.uf].mun[S.mun])}</strong>`); }
+  if(S.bairro){ c.push(`<span class="sep">/</span><strong>${esc(S.bairro.b)}</strong>`); }
+  if(viewActive()){ c.push(`<span class="sep">/</span><strong>Área visível no mapa</strong> <button type="button" data-fit="1">ver ${esc(scopeName().replace(/^(de|do) /,""))} inteiro</button>`); }
+  $("crumbs").innerHTML=c.join(" ");
+}
+$("crumbs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; if(b.dataset.fit){ S.sel=null; fit(); render(false); return; } if(b.dataset.go) setUF(b.dataset.go); else if(b.dataset.mun) setMun(b.dataset.mun); });
+function legend(){
+  const lensMob=METRICS[S.metric].lens==="mob";
+  const toggle=`<span class="cmode" role="group" aria-label="Cor dos círculos"><button type="button" data-c="rate" aria-pressed="${S.color==="rate"}">Cor: taxa</button><button type="button" data-c="win" aria-pressed="${S.color==="win"}">Cor: quem venceu</button><button type="button" data-c="heat" aria-pressed="${S.color==="heat"}">Calor</button></span>`;
+  let key;
+  if(S.color==="rate"){ const rc=rampColors(); const f=v=>fmt1.format(v*100);
+    const labs=BREAKS.length?[`até ${f(BREAKS[0])}%`,`${f(BREAKS[0])}–${f(BREAKS[1])}%`,`${f(BREAKS[1])}–${f(BREAKS[2])}%`,`${f(BREAKS[2])}–${f(BREAKS[3])}%`,`acima de ${f(BREAKS[3])}%`]:[];
+    key=`<span class="ramp"><span>${lensMob?"% de abstenção":"% dos votos em disputa"}:</span>${labs.map((l,i)=>`<span class="sw"><i style="background:${rc[i]}"></i>${l}</span>`).join("")}</span>`; }
+  else if(S.color==="heat") key=`<span>Mancha mais intensa: mais ${lensMob?"abstenções":"votos em disputa"} concentrados</span>`;
+  else key=`<span><i style="background:var(--lula)"></i>Lula venceu no ${S.uf==="BR"?"município":"local"}</span><span><i style="background:var(--flavio)"></i>Flávio venceu</span>`;
+  if(S.tab==="plano"&&PLAN){ $("legend").innerHTML=`<span>Cores e números: zonas do plano de ação</span><span><i style="background:var(--map-edge)"></i>Fora do plano</span><span>Tamanho: ${lensMob?"número de abstenções":"número de votos em disputa"}</span>`; return; }
+  $("legend").innerHTML=`${toggle}${key}<span>Tamanho: ${lensMob?"número de abstenções":"número de votos em disputa"}</span><span>Arraste para mover, role para aproximar</span>`;
+  $("legend").querySelectorAll(".cmode button").forEach(b=>b.onclick=()=>{S.color=b.dataset.c;legend();draw();});
+}
+function render(refit){ if(refit) fit(); computeBreaks(); summary(); renderRank(); detail(); crumbs(); legend(); draw(); }
+function writeHash(){ try{ history.replaceState(null,"",S.uf==="BR"?location.pathname+location.search:"#"+S.uf); }catch(e){} }
+
+// ---------- controles ----------
+function fillMetric(){
+  const opts=Object.entries(METRICS).filter(([k,m])=>m.lens===S.lens);
+  $("metric").innerHTML=opts.map(([k,m])=>`<option value="${k}">${m.label}</option>`).join(""); $("metric").value=S.metric; $("metric").disabled=opts.length<2;
+}
+function setLens(l){ S.lens=l; S.metric=l==="mob"?"abst":"per"; $("lens-mob").setAttribute("aria-pressed",l==="mob"); $("lens-per").setAttribute("aria-pressed",l==="per"); fillMetric(); S.limit=60; render(false); }
+$("lens-mob").onclick=()=>setLens("mob"); $("lens-per").onclick=()=>setLens("per");
+$("metric").onchange=e=>{ S.metric=e.target.value; S.limit=60; render(false); };
+$("win").onchange=e=>{ S.win=e.target.value; S.limit=60; render(false); };
+$("uf").onchange=e=>setUF(e.target.value);
+$("reset").onclick=()=>{ S.win="all"; $("win").value="all"; S.metric=S.lens==="mob"?"abst":"per"; fillMetric(); $("q").value=""; $("results").hidden=true; setUF("BR"); };
+$("mun").onchange=e=>setMun(e.target.value);
+
+// ---------- busca ----------
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+let qTimer=null;
+$("q").addEventListener("input",()=>{ clearTimeout(qTimer); const v=$("q").value.trim(); if(v.length>=2){ $("results").innerHTML=`<div class="empty">Buscando…</div>`; $("results").hidden=false; } qTimer=setTimeout(search,180); });
+$("q").addEventListener("keydown",e=>{ if(e.key==="Escape"){ $("results").hidden=true; } if(e.key==="Enter"){ const b=$("results").querySelector("button"); if(b){ e.preventDefault(); b.click(); } } });
+document.addEventListener("click",e=>{ if(!e.target.closest(".searchbox")) $("results").hidden=true; });
+async function search(){
+  const raw=$("q").value.trim(), box=$("results"); if(raw.length<2){box.hidden=true;return;}
+  const digits=raw.replace(/\D/g,""); const out=[];
+  if(digits.length>=5 && digits.length===raw.replace(/[\s.-]/g,"").length){
+    const uf=cepToUF(digits); if(uf){ if(!UFD[uf]){ box.innerHTML=`<div class="empty">Carregando dados de ${esc(IDX.ufnome[uf])}…</div>`; box.hidden=false; } const D=await loadUF(uf); let hits=[]; for(let n=Math.min(8,digits.length);n>=3&&hits.length<1;n--){ const p=digits.slice(0,n); hits=D.rows.filter(r=>r.cep.startsWith(p)); }
+      hits.sort((a,b)=>Math.abs(+a.cep-+digits.padEnd(8,"0"))-Math.abs(+b.cep-+digits.padEnd(8,"0"))); hits.slice(0,12).forEach(r=>out.push({t:"loc",r,lab:r.nome,sub:`CEP ${r.cep.slice(0,5)}-${r.cep.slice(5)} · ${r.bairro} · ${r.mun}/${r.uf}`})); }
+  } else {
+    const q=norm(raw);
+    for(const r of MUNS){ if(norm(r.nome).includes(q)){ out.push({t:"mun",r,lab:r.nome,sub:"Município · "+IDX.ufnome[r.uf]}); if(out.length>=6) break; } }
+    if(S.uf!=="BR"){ const D=UFD[S.uf]; const seen=new Set(); const pool=S.mun>=0?D.rows.filter(r=>r.mi===S.mun):D.rows;
+      for(const r of pool){ if(norm(r.bairro).includes(q)){ const k=r.mi+"|"+r.bairro; if(!seen.has(k)){ seen.add(k); out.push({t:"bairro",r,lab:r.bairro,sub:"Bairro · "+r.mun}); } } if(seen.size>=6) break; }
+      let c=0; for(const r of pool){ if(norm(r.nome).includes(q)||norm(r.end).includes(q)){ out.push({t:"loc",r,lab:r.nome,sub:r.bairro+" · "+r.mun}); if(++c>=12) break; } } }
+  }
+  if(!out.length){ box.innerHTML=`<div class="empty">${S.uf==="BR"&&!/\d{5}/.test(digits)?"Nada encontrado. Para buscar escola ou bairro, escolha um estado ou digite um CEP.":"Nada encontrado neste recorte."}</div>`; box.hidden=false; return; }
+  box.innerHTML=out.map((o,i)=>`<button type="button" data-i="${i}">${esc(o.lab)}<small>${esc(o.sub)}</small></button>`).join(""); box.hidden=false;
+  const small=()=>matchMedia("(max-width: 960px)").matches;
+  const go=el=>{ if(small()) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),120); };
+  box.querySelectorAll("button").forEach(b=>b.onclick=async()=>{ const o=out[+b.dataset.i]; $("q").value="";
+    if(o.r.uf&&!UFD[o.r.uf]){ box.innerHTML=`<div class="empty">Carregando dados de ${esc(IDX.ufnome[o.r.uf])}…</div>`; } else box.hidden=true;
+    if(o.t==="mun"){ await pick(o.r); box.hidden=true; go(document.querySelector(".mapcard")); return; }
+    if(S.uf!==o.r.uf) await setUF(o.r.uf,false);
+    box.hidden=true;
+    if(o.t==="bairro"){ await pick({kind:"bairro",mi:o.r.mi,b:o.r.bairro}); go(document.querySelector(".mapcard")); return; }
+    setMun(o.r.mi,false); S.sel=o.r; focusOn([o.r],0.03); render(false); go($("detail")); });
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+
+// ---------- simulador ----------
+const GROUPS=[["abst","Quem faltou no 1º turno"],["bn","Brancos e nulos"],["cury","Augusto Cury"],["renan","Renan Santos"],["caiado","Ronaldo Caiado"],["zema","Zema"],["outros","Demais candidatos"]];
+const SIM={split:{}, part:85, bn:20, abst2:null};
+const ABST1=()=>IDX.tot.abst/IDX.tot.apt*100;
+function simPreset(p){ for(const [g] of GROUPS) SIM.split[g]= p==="L"?100 : p==="F"?0 : 50; if(p==="eq"){ SIM.part=85; SIM.bn=20; SIM.abst2=Math.round(ABST1()*10)/10; } }
+const groupRate=g=> g==="bn"?SIM.bn : SIM.part;
+function groupTot(g){ const T=IDX.tot; if(g==="abst") return Math.max(0,(ABST1()-SIM.abst2)/100*T.apt); return (g==="bn"?T.br+T.nu : T[g])*groupRate(g)/100; }
+function simCalc(){
+  const R={L:0,F:0,L1:0,F1:0,ufs:{},mun:[],TL:0,TF:0,P:0,drop:0};
+  let dpp=(SIM.abst2-ABST1())/100; if(Math.abs(dpp)<0.0005) dpp=0; // variação da abstenção, em pontos, aplicada igual em todos os municípios
+  for(const [uf,list] of Object.entries(IDX.uf)){ const U=R.ufs[uf]={L:0,F:0,L1:0,F1:0};
+    for(const a of list){ const lat=a[1],lon=a[2],apt=a[4],abst=a[5],F=a[6],L=a[7];
+      const vals={cury:a[8],renan:a[9],caiado:a[10],zema:a[11],outros:a[12],bn:a[13]+a[14]};
+      let l=L,f=F;
+      for(const [g] of GROUPS){ if(g==="abst") continue; const v=vals[g]*groupRate(g)/100, dl=v*SIM.split[g]/100, df=v-dl; l+=dl; f+=df; R.TL+=dl; R.TF+=df; R.P+=v; }
+      if(dpp<0){ const v=Math.min(abst,-dpp*apt), dl=v*SIM.split.abst/100, df=v-dl; l+=dl; f+=df; R.TL+=dl; R.TF+=df; R.P+=v; }
+      else if(dpp>0 && L+F){ const drop=Math.min(L+F,dpp*apt); l-=drop*L/(L+F); f-=drop*F/(L+F); R.drop+=drop; }
+      U.L+=l;U.F+=f;U.L1+=L;U.F1+=F; R.L+=l;R.F+=f;R.L1+=L;R.F1+=F; R.mun.push({lat,lon,l,f,L,F,uf,nome:a[0]}); } }
+  return R;
+}
+function splitTxt(v){ return v===50?"metade para cada": v===100?"todos para Lula": v===0?"todos para Flávio": `${v}% · ${100-v}%`; }
+function abstTxt(){ const a1=ABST1(), d=SIM.abst2-a1, n=Math.abs(d)/100*IDX.tot.apt;
+  return Math.abs(d)<0.05 ? "igual ao 1º turno" : d<0 ? `${short(n)} a mais votando` : `${short(n)} a menos votando`; }
+function groupsUI(){
+  const T=IDX.tot, third=T.cury+T.renan+T.caiado+T.zema+T.outros, a1=ABST1();
+  const row=([g,n])=>`<div class="sl tri${g==="abst"&&SIM.abst2>=a1?" off":""}" id="row-${g}"><label for="s-${g}">${n} <span class="muted" id="sc-${g}">· ${short(groupTot(g))}</span></label><input type="range" id="s-${g}" data-g="${g}" min="0" max="100" step="5" value="${100-SIM.split[g]}" aria-label="Divisão entre Lula e Flávio: ${n}"><output id="so-${g}">${splitTxt(SIM.split[g])}</output></div>`;
+  $("groups").innerHTML=`
+   <div class="grp"><div class="q"><span class="qn">1</span><strong>Quanto vai ser a abstenção no 2º turno?</strong></div>
+     <div class="sl one"><input type="range" id="a-abst" min="14" max="28" step="0.1" value="${SIM.abst2}" aria-label="Abstenção no 2º turno"><output id="a-absto">${fmt1.format(SIM.abst2)}%</output></div>
+     <p class="hint" id="a-absth">No 1º turno foi ${fmt1.format(a1)}%. Agora: <strong>${abstTxt()}</strong>. Se subir, eleitores de Lula e Flávio deixam de ir, na proporção de cada município. Se cair, quem volta entra na primeira linha abaixo.</p></div>
+   <div class="grp"><div class="q"><span class="qn">2</span><strong>Para quem vão os votos que estão em jogo?</strong></div>
+     <p class="hint">Arraste para a esquerda se o grupo vai mais para Lula, para a direita se vai mais para Flávio.</p>
+     <div class="ends"><span style="color:var(--lula)">◀ Lula</span><span style="color:var(--flavio)">Flávio ▶</span></div>${GROUPS.map(row).join("")}</div>
+   <details class="grp adv" id="adv"><summary><strong>Ajustar quantos votam de novo</strong> <span class="muted">· ${SIM.bn}% de brancos e nulos, ${SIM.part}% dos eleitores dos outros candidatos</span></summary>
+     <div class="sl one"><label for="a-bn">Quem votou branco ou nulo e vai escolher alguém</label><input type="range" id="a-bn" min="0" max="50" step="5" value="${SIM.bn}"><output id="a-bno">${SIM.bn}% · ${short((T.br+T.nu)*SIM.bn/100)}</output></div>
+     <div class="sl one"><label for="a-part">Eleitores dos outros candidatos que votam de novo</label><input type="range" id="a-part" min="50" max="100" step="5" value="${SIM.part}"><output id="a-parto">${SIM.part}% · ${short(third*SIM.part/100)}</output></div>
+   </details>`;
+  const refreshCounts=()=>{ for(const [g] of GROUPS) $("sc-"+g).textContent="· "+short(groupTot(g));
+    $("row-abst").classList.toggle("off",SIM.abst2>=a1);
+    $("adv").querySelector("summary .muted").textContent=`· ${SIM.bn}% de brancos e nulos, ${SIM.part}% dos eleitores dos outros candidatos`; };
+  $("groups").querySelectorAll("input[data-g]").forEach(i=>i.oninput=()=>{ const g=i.dataset.g; SIM.split[g]=100-(+i.value); $("so-"+g).textContent=splitTxt(SIM.split[g]); simSchedule(); });
+  $("a-abst").oninput=e=>{ SIM.abst2=+e.target.value; $("a-absto").textContent=fmt1.format(SIM.abst2)+"%"; $("a-absth").innerHTML=`No 1º turno foi ${fmt1.format(a1)}%. Agora: <strong>${abstTxt()}</strong>. Se subir, eleitores de Lula e Flávio deixam de ir, na proporção de cada município. Se cair, quem volta entra na primeira linha abaixo.`; refreshCounts(); simSchedule(); };
+  $("a-bn").oninput=e=>{ SIM.bn=+e.target.value; $("a-bno").textContent=`${SIM.bn}% · ${short((T.br+T.nu)*SIM.bn/100)}`; refreshCounts(); simSchedule(); };
+  $("a-part").oninput=e=>{ SIM.part=+e.target.value; $("a-parto").textContent=`${SIM.part}% · ${short(third*SIM.part/100)}`; refreshCounts(); simSchedule(); };
+}
+let simRaf=0; function simSchedule(){ cancelAnimationFrame(simRaf); simRaf=requestAnimationFrame(simRender); }
+let SIMR=null;
+function simRender(){
+  const R=SIMR=simCalc(), V2=R.L+R.F, pL=R.L/V2, pF=R.F/V2, diff=Math.round(Math.abs(R.L-R.F));
+  const w = R.L>R.F ? "Lula" : "Flávio";
+  // ponto de empate no bloco de terceiros
+  const Lb=R.L-R.TL, Fb=R.F-R.TF, s=R.P? (Fb-Lb+R.P)/(2*R.P) : NaN;
+  let tip;
+  if(!R.P) tip="Nenhum voto em jogo neste cenário.";
+  else if(s<=0) tip=`Lula vence mesmo que <strong>todos</strong> os votos em jogo vão para Flávio.`;
+  else if(s>=1) tip=`Flávio vence mesmo que <strong>todos</strong> os votos em jogo vão para Lula.`;
+  else tip=`<strong>Ponto de empate:</strong> dos ${short(R.P)} votos em jogo neste cenário, Lula precisa de <strong>${fmt1.format(s*100)}%</strong> para empatar. Flávio precisa de <strong>${fmt1.format((1-s)*100)}%</strong>.`;
+  const v1=R.L1+R.F1;
+  $("score").innerHTML=`<div class="cands"><div class="c L"><span class="n">Lula</span><span class="p">${fmt1.format(pL*100)}%</span><span class="v">${fmt.format(Math.round(R.L))} votos</span></div><span class="vs">votos válidos</span><div class="c r F"><span class="n">Flávio</span><span class="p">${fmt1.format(pF*100)}%</span><span class="v">${fmt.format(Math.round(R.F))} votos</span></div></div>
+   <div class="duel" role="img" aria-label="Lula ${fmt1.format(pL*100)}%, Flávio ${fmt1.format(pF*100)}%"><i style="width:${pL*100}%;background:var(--lula)"></i><i style="width:${pF*100}%;background:var(--flavio)"></i><span class="mid"></span></div>
+   <p class="verdict">Neste cenário, <strong>${w}</strong> vence por <strong>${fmt.format(diff)}</strong> votos. No 1º turno, considerando só os dois, era Lula ${fmt1.format(R.L1/v1*100)}% × Flávio ${fmt1.format(R.F1/v1*100)}%.</p>
+   <p class="tipping">${tip}</p>
+   <div class="links"><button class="copy" type="button" id="simcopy">Copiar meu cenário</button></div>`;
+  $("simcopy").onclick=async()=>{ const desc=GROUPS.map(([g,n])=>`${n}: ${splitTxt(SIM.split[g])}`).join("; ");
+    const t=`Meu cenário no simulador do 2º turno: Lula ${fmt1.format(pL*100)}% × Flávio ${fmt1.format(pF*100)}% (${w} por ${fmt.format(diff)} votos). Premissas: abstenção de ${fmt1.format(SIM.abst2)}% (1º turno: ${fmt1.format(ABST1())}%); ${desc}. ${SIM.bn}% dos brancos e nulos escolhem alguém e ${SIM.part}% dos eleitores dos outros candidatos votam de novo. Feito no Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj`;
+    const b=$("simcopy"); try{ await navigator.clipboard.writeText(t); b.textContent="Cenário copiado"; }catch(e){ b.textContent="Não foi possível copiar"; } };
+  // estados
+  const ufs=Object.entries(R.ufs).map(([uf,U])=>({uf,U,w:U.L>U.F?"L":"F",w1:U.L1>U.F1?"L":"F",m:(U.L-U.F)/(U.L+U.F)})).sort((a,b)=>b.m-a.m);
+  const nL=ufs.filter(x=>x.w==="L").length, nflip=ufs.filter(x=>x.w!==x.w1).length;
+  $("ufcount").textContent=`Lula vence em ${nL}, Flávio em ${27-nL}${nflip?` · ${nflip} ${nflip>1?"viraram":"virou"} em relação ao 1º turno`:""}`;
+  const shade=(m)=>{ const a=Math.min(1,.45+Math.abs(m)*2.2); return mix(css(m>0?"--lula":"--flavio"),css("--surface"),a); };
+  $("ufgrid").innerHTML=ufs.map(x=>`<div class="uft${x.w!==x.w1?" flip":""}" style="background:${shade(x.m)}" title="${esc(IDX.ufnome[x.uf])}"><b>${x.uf}</b><span>${x.w==="L"?"Lula":"Flávio"} +${fmt1.format(Math.abs(x.m)*100)}</span></div>`).join("");
+  $("simbar").innerHTML=`<span class="bl">Lula ${fmt1.format(pL*100)}%</span><small>${w} vence<br>por ${short(diff)} votos</small><span class="bf">${fmt1.format(pF*100)}% Flávio</span>`;
+  simDraw();
+}
+// mapa do simulador
+const scv=$("simmap"), sctx=scv.getContext("2d"); let SW=0,SH=0,SK=1,STX=0,STY=0; const SCOS=Math.cos(-15*Math.PI/180);
+function simResize(){ const b=scv.parentElement.getBoundingClientRect(), d=window.devicePixelRatio||1; SW=b.width;SH=b.height; scv.width=SW*d;scv.height=SH*d; sctx.setTransform(d,0,0,d,0,0);
+  const x0=-74*SCOS,x1=-34*SCOS,y0=-6,y1=34,pad=16; SK=Math.min((SW-pad*2)/(x1-x0),(SH-pad*2)/(y1-y0)); STX=(SW-(x0+x1)*SK)/2; STY=(SH-(y0+y1)*SK)/2; }
+const spx=(lo,la)=>[lo*SCOS*SK+STX,-la*SK+STY];
+let SDRAWN=[];
+function simDraw(){ if(!SIMR||!SW) return; sctx.clearRect(0,0,SW,SH);
+  if(OUTL) for(const f of OUTL){ sctx.beginPath(); for(const ring of f.r){ ring.forEach(([lo,la],i)=>{const [x,y]=spx(lo,la); i?sctx.lineTo(x,y):sctx.moveTo(x,y);}); sctx.closePath(); } sctx.fillStyle=css("--map-land"); sctx.fill(); sctx.strokeStyle=css("--map-edge"); sctx.lineWidth=.7; sctx.stroke(); }
+  const sf=css("--surface"), cl=css("--lula"), cf=css("--flavio"); const mx=Math.max(...SIMR.mun.map(m=>m.l+m.f));
+  const pts=SIMR.mun.filter(m=>m.lat!=null).map(m=>{ const [x,y]=spx(m.lon,m.lat), v=m.l+m.f, mg=(m.l-m.f)/v, flip=(m.l>m.f)!==(m.L>m.F); return {m,x,y,r:Math.max(1.3,Math.sqrt(v/mx)*16),mg,flip}; }).sort((a,b)=>b.r-a.r);
+  for(const p of pts){ const t=Math.min(1,.35+Math.abs(p.mg)*1.6); sctx.beginPath(); sctx.arc(p.x,p.y,p.r,0,7); sctx.fillStyle=mix(p.mg>0?cl:cf,sf,t); sctx.globalAlpha=.85; sctx.fill(); sctx.globalAlpha=1;
+    if(p.flip){ sctx.lineWidth=1.4; sctx.strokeStyle=css("--fg"); sctx.stroke(); } }
+  SDRAWN=pts; watermark(sctx,SW,SH);
+  const nflip=pts.filter(p=>p.flip).length;
+  $("simlegend").innerHTML=`<span><i style="background:var(--lula)"></i>Lula vence no município</span><span><i style="background:var(--flavio)"></i>Flávio vence</span><span>Cor mais forte: vitória mais folgada</span><span>Contorno: município que virou em relação ao 1º turno (${fmt.format(nflip)})</span>`;
+}
+scv.addEventListener("pointermove",e=>{ const b=scv.getBoundingClientRect(), mx=e.clientX-b.left, my=e.clientY-b.top; let best=null,bd=1e9; for(const p of SDRAWN){const d=Math.hypot(p.x-mx,p.y-my); if(d<Math.max(p.r,6)&&d<bd){bd=d;best=p;}} const t=$("simtip");
+  if(!best){t.hidden=true;return;} const m=best.m, v=m.l+m.f, v1=m.L+m.F;
+  t.innerHTML=`<b>${esc(m.nome)} · ${m.uf}</b>Cenário: Lula ${fmt1.format(m.l/v*100)}% × Flávio ${fmt1.format(m.f/v*100)}%<br>1º turno, só os dois: ${fmt1.format(m.L/v1*100)}% × ${fmt1.format(m.F/v1*100)}%`;
+  t.hidden=false; t.style.left=Math.min(SW-t.offsetWidth-6,mx+12)+"px"; t.style.top=Math.max(6,my-t.offsetHeight-10)+"px"; });
+scv.addEventListener("pointerleave",()=>{$("simtip").hidden=true;});
+$("presets").addEventListener("click",e=>{ const b=e.target.closest("button[data-p]"); if(!b) return; simPreset(b.dataset.p); groupsUI(); simSchedule(); });
+// troca de visão
+let simReady=false;
+function setView(v){
+  const sim=v==="sim"; $("view-map").hidden=sim; $("view-sim").hidden=!sim; $("simbar").hidden=!sim; document.querySelector(".lens").hidden=sim;
+  $("view-map-tab").setAttribute("aria-selected",!sim); $("view-sim-tab").setAttribute("aria-selected",sim);
+  if(sim){ if(!simReady){ if(SIM.abst2==null) simPreset("eq"); groupsUI(); simReady=true; } requestAnimationFrame(()=>{ simResize(); simRender(); }); }
+  else { requestAnimationFrame(()=>{ resize(); fit(); render(false); }); }
+  try{ history.replaceState(null,"",sim?"#simulador":(S.uf==="BR"?location.pathname+location.search:"#"+S.uf)); }catch(e){}
+}
+document.querySelector(".views").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if(b) setView(b.dataset.view); });
+new ResizeObserver(()=>{ if(!$("view-sim").hidden){ simResize(); simDraw(); } }).observe(scv.parentElement);
+
+
+// ---------- tour de 30 segundos ----------
+let TOUR=null;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function concText(rows,m){ const v=rows.filter(r=>r.lat!=null).map(r=>METRICS[m].v(r)).sort((a,b)=>b-a); const T=v.reduce((a,b)=>a+b,0); let acc=0,k=0; while(k<v.length&&acc<T/2){acc+=v[k];k++;} return {k,n:v.length,T}; }
+async function runTour(){
+  if(TOUR) return; const id={stop:false}; TOUR=id; const N=7; let step=0;
+  const cap=async(txt,ms)=>{ if(id.stop) throw 0; step++; $("captxt").textContent=txt; $("capdots").innerHTML=Array.from({length:N},(_,i)=>`<i class="${i<step?"on":""}"></i>`).join(""); $("caption").hidden=false; const p=$("captxt"); p.style.animation="none"; void p.offsetWidth; p.style.animation=""; await sleep(ms); if(id.stop) throw 0; };
+  const fade=async fn=>{ cv.style.opacity=.15; await sleep(300); await fn(); cv.style.opacity=1; await sleep(250); };
+  try{
+    window.scrollTo({top:0,behavior:"smooth"}); setView("map"); S.win="all"; $("win").value="all"; S.color="heat";
+    await fade(async()=>{ await setUF("BR",false); setLens("mob"); });
+    await cap("No 1º turno, quase 33 milhões de brasileiros não foram votar.",4200);
+    await fade(async()=>{ setLens("per"); });
+    await cap("Outros 15 milhões votaram em quem saiu da disputa, em branco ou nulo.",4200);
+    await cap("Metade desse público está concentrada em cerca de 1 em cada 10 bairros do país.",4200);
+    await fade(async()=>{ await setUF("SP",false); const j=UFD.SP.mun.indexOf("São Paulo"); setMun(j,false); S.tab="loc"; render(false); });
+    const c=concText(units(),S.metric);
+    await cap(`Em São Paulo, metade dos votos em disputa está em ${fmt.format(c.k)} dos ${fmt.format(c.n)} locais de votação.`,4600);
+    S.tab="plano"; renderRank(); legend(); draw(); $("rankwrap").scrollTop=0;
+    await cap("O plano de ação agrupa esses locais em zonas e roteiros para a campanha de rua.",4800);
+    setView("sim"); window.scrollTo({top:0,behavior:"smooth"});
+    await cap("E no simulador você decide para onde vão esses votos e vê quem vence.",5200);
+    await cap("Ferramenta criada por Camilo Rosa · linkedin.com/in/camilo-rosa",3600);
+  }catch(e){}
+  $("caption").hidden=true; cv.style.opacity=1; TOUR=null;
+}
+$("tourbtn").onclick=runTour;
+// qualquer interação da pessoa durante o tour interrompe e devolve o controle
+const stopTour=e=>{ if(!TOUR) return; if(e.target.closest&&(e.target.closest("#caption")||e.target.closest("#tourbtn"))) return; TOUR.stop=true; $("caption").hidden=true; cv.style.opacity=1; };
+document.addEventListener("pointerdown",stopTour,true); document.addEventListener("change",stopTour,true); document.addEventListener("input",stopTour,true); document.addEventListener("keydown",e=>{ if(e.key==="Escape"||e.key==="Tab") stopTour(e); },true);
+document.addEventListener("wheel",e=>{ if(TOUR&&e.target===cv) stopTour(e); },{capture:true,passive:true});
+$("capskip").onclick=()=>{ if(TOUR) TOUR.stop=true; $("caption").hidden=true; };
+
+// ---------- localização (só funciona onde o navegador permite; nada é enviado para fora) ----------
+let toastT=null; function toast(html,ms=6000){ const t=$("toast"); t.innerHTML=html; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,ms); }
+function getPos(){ return new Promise(res=>{ if(!navigator.geolocation) return res(null); let done=false; const fin=v=>{ if(!done){done=true;res(v);} };
+  try{ navigator.geolocation.getCurrentPosition(p=>fin({lat:p.coords.latitude,lon:p.coords.longitude}),()=>fin(null),{enableHighAccuracy:false,timeout:15000,maximumAge:600000}); }catch(e){ fin(null); }
+  setTimeout(()=>fin(null),20000); }); }
+const km=(a,b,c,d)=>{ const x=(d-b)*111.32*Math.cos((a+c)/2*Math.PI/180), y=(c-a)*110.57; return Math.hypot(x,y); };
+async function locateMe(manual){
+  const pos=await getPos();
+  if(!pos){ if(manual) toast("Não foi possível usar sua localização. Verifique se o navegador tem permissão, ou digite sua cidade ou CEP na busca."); return false; }
+  if(pos.lat>6||pos.lat<-34.5||pos.lon<-74.5||pos.lon>-28){ toast("Sua localização parece estar fora do Brasil. Digite sua cidade ou CEP na busca."); return false; }
+  let best=null,bd=1e9; for(const r of MUNS){ if(r.lat==null) continue; const d=km(pos.lat,pos.lon,r.lat,r.lon); if(d<bd){bd=d;best=r;} }
+  if(!best) return false;
+  await setUF(best.uf,false); setMun(best.j,false);
+  let loc=null,ld=1e9; for(const r of units()){ if(r.lat==null) continue; const d=km(pos.lat,pos.lon,r.lat,r.lon); if(d<ld){ld=d;loc=r;} }
+  if(loc){ S.sel=loc; focusOn([loc],0.03); }
+  render(false);
+  toast(`Mostrando a região perto de você, em <strong>${esc(best.nome)}</strong>${loc?`. Local de votação mais próximo: <strong>${esc(loc.nome)}</strong>, a ${ld<1?"menos de 1 km":fmt1.format(ld)+" km"}`:""}. Sua localização não sai do seu navegador.`,8000);
+  return true;
+}
+$("nearme").onclick=()=>{ if(TOUR){TOUR.stop=true;$("caption").hidden=true;} setView("map"); locateMe(true); };
+// ---------- início ----------
+let rT=null; new ResizeObserver(()=>{ clearTimeout(rT); rT=setTimeout(()=>{ resize(); fit(); draw(); },60); }).observe($("mapbox"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>draw());
+new MutationObserver(()=>draw()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+(async()=>{
+  try{
+    [IDX,OUTL]=await Promise.all([getJSON("d/index.json"),getJSON("d/uf.json")]);
+    MUNS=munRows();
+    $("uf").innerHTML=`<option value="BR">Brasil</option>`+Object.entries(IDX.ufnome).sort((a,b)=>a[1].localeCompare(b[1],"pt-BR")).map(([k,n])=>`<option value="${k}">${n}</option>`).join("");
+    $("foot").textContent=`${fmt.format(IDX.nloc)} locais de votação · TSE e IBGE`;
+    fillMetric(); resize();
+    const raw=(location.hash||"").replace("#",""), h=raw.toUpperCase();
+    let opened=false;
+    const cm=raw.toLowerCase().match(/^(.+)-([a-z]{2})$/);
+    if(cm && IDX.ufnome[cm[2].toUpperCase()]) opened=await openCity(cm[2].toUpperCase(),cm[1]);
+    if(!opened && IDX.ufnome[h]) { await setUF(h,false); opened=true; }
+    if(!opened && !raw){ try{ const last=JSON.parse(localStorage.getItem("m2t_ultima_cidade")||"null"); if(last&&localStorage.getItem("m2t_tour_visto")==="1") opened=await openCity(last.uf,last.mun); }catch(e){} }
+    if(!opened) fit();
+    $("loading").hidden=true; render(false); if(h==="SIMULADOR") setView("sim"); if(h==="TOUR") setTimeout(runTour,600);
+    let seen=false; try{ seen=localStorage.getItem("m2t_tour_visto")==="1"; localStorage.setItem("m2t_tour_visto","1"); }catch(e){ seen=true; }
+    if(!raw){ const ok=await locateMe(false); if(ok) return; }
+    if(!seen && !raw) setTimeout(runTour,300);
+  }catch(e){ $("loading").textContent="Não foi possível carregar os dados. Recarregue a página."; console.error(e); }
+})();
+})();
+</script>
+
+</body>
+</html>
