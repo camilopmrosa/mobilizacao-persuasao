@@ -11,7 +11,7 @@ Mostra, local de votação por local de votação, onde estão os eleitores que 
 ## Fontes
 - TSE: votação por seção, detalhe da votação por seção e eleitorado por local de votação (1º turno, 4/10/2026)
 - IBGE: Censo 2022 (renda do responsável por setor censitário e malha de setores)
-- Mapa de ruas: © OpenStreetMap · © CARTO
+- Mapa de ruas: © colaboradores do OpenStreetMap
 
 Dados públicos e agregados; não há informação de nenhum eleitor individual. A localização, quando permitida, é usada só no navegador e não é enviada a lugar nenhum.
 
