@@ -50,7 +50,9 @@ h1 .amp{font-weight:500;color:var(--muted)}
 
 .lens{display:inline-grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface);gap:3px}
 .lens button{border:0;background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600;display:flex;gap:8px;align-items:center;white-space:nowrap}
-.lens button .dot{width:9px;height:9px;border-radius:50%}
+.lens button .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.lens .lt{display:grid;text-align:left;line-height:1.15}
+.lens .lt small{font-weight:400;font-size:11.5px;color:var(--muted)}
 .lens button[data-lens="mob"] .dot{background:var(--mob)}
 .lens button[data-lens="per"] .dot{background:var(--per)}
 .lens button[aria-pressed="true"][data-lens="mob"]{background:var(--mob-soft)}
@@ -304,8 +306,8 @@ footer{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16p
     <div class="hright">
     <button type="button" class="tourbtn" id="tourbtn">▶ Ver em 30 segundos</button>
     <div class="lens" role="group" aria-label="Lente">
-      <button type="button" id="lens-mob" data-lens="mob" aria-pressed="true"><span class="dot"></span>Mobilização</button>
-      <button type="button" id="lens-per" data-lens="per" aria-pressed="false"><span class="dot"></span>Persuasão</button>
+      <button type="button" id="lens-mob" data-lens="mob" aria-pressed="true"><span class="dot"></span><span class="lt">Mobilização<small>quem não foi votar</small></span></button>
+      <button type="button" id="lens-per" data-lens="per" aria-pressed="false"><span class="dot"></span><span class="lt">Persuasão<small>votos fora dos finalistas</small></span></button>
     </div>
     </div>
   </header>
@@ -729,7 +731,7 @@ function renderPlan(){
   $("plancopy").onclick=async()=>{
     const lines=[`PLANO DE AÇÃO · ${METRICS[m].label} · ${mun}/${S.uf}${winTxt}`,`${fmt.format(PLAN.nPri)} locais somam ${pct(PLAN.acc,PLAN.tot)} do público (${fmt.format(PLAN.acc)} ${what}), em ${PLAN.zones.length} zonas.`,""];
     PLAN.zones.forEach(z=>{ lines.push(`ZONA ${z.n} · ${z.bairros.slice(0,3).join(", ")} · ${fmt.format(z.v)} ${what} · ${z.pts.length} locais`); z.route.forEach((p,i)=>lines.push(`  ${i+1}. ${p.r.nome} · ${p.r.end}, ${p.r.bairro}${p.r.cep?" · CEP "+p.r.cep.slice(0,5)+"-"+p.r.cep.slice(5):""} · ${fmt.format(p.w)}`)); lines.push(""); });
-    lines.push("Fonte: TSE (1º turno 2026) · Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj");
+    lines.push("Fonte: TSE (1º turno 2026) · Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://camilopmrosa.github.io/mobilizacao-persuasao/");
     const b=$("plancopy"); try{ await navigator.clipboard.writeText(lines.join("\n")); b.textContent="Plano copiado"; }catch(e){ b.textContent="Não foi possível copiar"; } };
 }
 
@@ -984,7 +986,7 @@ function simRender(){
    <p class="tipping">${tip}</p>
    <div class="links"><button class="copy" type="button" id="simcopy">Copiar meu cenário</button></div>`;
   $("simcopy").onclick=async()=>{ const desc=GROUPS.map(([g,n])=>`${n}: ${splitTxt(SIM.split[g])}`).join("; ");
-    const oo=winOdds((pL-pF)*100); const t=`Meu cenário no simulador do 2º turno: Lula ${fmt1.format(pL*100)}% × Flávio ${fmt1.format(pF*100)}% (${w} por ${fmt.format(diff)} votos). Chance de vitória: Lula ${Math.round(oo.L*100)}%, Flávio ${Math.round(oo.F*100)}%. Premissas: abstenção de ${fmt1.format(SIM.abst2)}% (1º turno: ${fmt1.format(ABST1())}%); ${desc}. ${SIM.bn}% dos brancos e nulos escolhem alguém e ${SIM.part}% dos eleitores dos outros candidatos votam de novo. Feito no Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://claude.ai/artifact/LwgrjKv15wvob74RoWnjyj`;
+    const oo=winOdds((pL-pF)*100); const t=`Meu cenário no simulador do 2º turno: Lula ${fmt1.format(pL*100)}% × Flávio ${fmt1.format(pF*100)}% (${w} por ${fmt.format(diff)} votos). Chance de vitória: Lula ${Math.round(oo.L*100)}%, Flávio ${Math.round(oo.F*100)}%. Premissas: abstenção de ${fmt1.format(SIM.abst2)}% (1º turno: ${fmt1.format(ABST1())}%); ${desc}. ${SIM.bn}% dos brancos e nulos escolhem alguém e ${SIM.part}% dos eleitores dos outros candidatos votam de novo. Feito no Mobilização e Persuasão, por Camilo Rosa (https://www.linkedin.com/in/camilo-rosa/) · https://camilopmrosa.github.io/mobilizacao-persuasao/`;
     const b=$("simcopy"); try{ await navigator.clipboard.writeText(t); b.textContent="Cenário copiado"; }catch(e){ b.textContent="Não foi possível copiar"; } };
   // estados
   const ufs=Object.entries(R.ufs).map(([uf,U])=>({uf,U,w:U.L>U.F?"L":"F",w1:U.L1>U.F1?"L":"F",m:(U.L-U.F)/(U.L+U.F)})).sort((a,b)=>b.m-a.m);
