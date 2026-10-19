@@ -479,7 +479,7 @@ function fit(){
 function resize(){ const b=$("mapbox").getBoundingClientRect(); DPR=window.devicePixelRatio||1; W=b.width;H=b.height; cv.width=W*DPR;cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
 let DRAWN=[];
 function watermark(c,w,h){ c.save(); c.font='600 11px "IBM Plex Sans", "Segoe UI", system-ui, sans-serif'; c.textAlign="right"; c.textBaseline="bottom"; c.globalAlpha=.55; c.fillStyle=css("--muted"); c.fillText("Mobilização e Persuasão · por Camilo Rosa · linkedin.com/in/camilo-rosa",w-10,h-8);
-  if(c===ctx&&TILES.on&&TILES.ok){ c.textAlign="left"; c.globalAlpha=.75; c.fillText("© colaboradores do OpenStreetMap",10,h-8); } c.restore(); }
+  if(c===ctx&&TILES.on&&TILES.ok){ const a="© colaboradores do OpenStreetMap", fits=c.measureText(a).width+c.measureText("Mobilização e Persuasão · por Camilo Rosa · linkedin.com/in/camilo-rosa").width+40<w; c.textAlign="left"; c.globalAlpha=.75; c.fillText(a,10,fits?h-8:h-23); } c.restore(); }
 function draw(){ drawCore(); watermark(ctx,W,H); }
 const TILES={on:true,ok:0,fail:0,cache:new Map()}; let tileRaf=0;
 const isDark=()=>{ const t=document.documentElement.getAttribute("data-theme"); return t? t==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
